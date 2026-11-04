@@ -132,6 +132,7 @@ public class MainActivity extends Activity {
     FrameLayout root;
     ImageView wallView;
     ImageView customWallpaperView;
+    NowPlayingIsland nowPlayingIsland;
     boolean customWallpaperShowing;
     List<String> customWallpaperUris = new ArrayList<>();
     int customWallpaperIndex;
@@ -370,6 +371,7 @@ public class MainActivity extends Activity {
         returningFromSettings = false;
         refreshCustomWallpaper();
         if (!customWallpaperShowing) loadHero();
+        if (nowPlayingIsland != null) nowPlayingIsland.refreshPermissionAndSettings();
         if (launchOverlay != null) finishLaunchReturn();
         // Setup not finished (e.g. Home was pressed during it): pick it up again.
         if (!SetupActivity.done(this)) {
@@ -681,6 +683,14 @@ public class MainActivity extends Activity {
         wlp.leftMargin = dockOuter;
         root.addView(weatherCard, wlp);
         updateWeather();
+
+        // Compact Dynamic Island-style media pill, centered along the top edge.
+        nowPlayingIsland = new NowPlayingIsland(this);
+        FrameLayout.LayoutParams np = new FrameLayout.LayoutParams(dp(440), dp(56), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        np.topMargin = dp(18);
+        root.addView(nowPlayingIsland, np);
+        nowPlayingIsland.setNextFocusLeftId(weatherCard.getId());
+        if (searchButton != null) nowPlayingIsland.setNextFocusRightId(searchButton.getId());
 
         setContentView(root);
         Clicks.quiet(root);  // Android's own click sounds off: the Sounds switch decides
@@ -1705,7 +1715,11 @@ public class MainActivity extends Activity {
 
     /** Up from the shelf/dock: the tab bar, or the status row when the tab bar is hidden. */
     void focusTop() {
-        (switcher != null && switcher.getVisibility() == View.VISIBLE ? switcher : ccButton).requestFocus();
+        if (nowPlayingIsland != null && nowPlayingIsland.getVisibility() == View.VISIBLE) {
+            nowPlayingIsland.requestFocus();
+        } else {
+            (switcher != null && switcher.getVisibility() == View.VISIBLE ? switcher : ccButton).requestFocus();
+        }
     }
 
     boolean continueMode() {
