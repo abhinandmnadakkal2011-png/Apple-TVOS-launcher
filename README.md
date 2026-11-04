@@ -1,6 +1,6 @@
-# Abhi Studio Launcher
+# Nadakkal Launcher
 
-A customised tvOS 26–style home screen for Android TV, maintained by **Abhi Studio** (Abhinand.M, GitHub: `abhinandnadakkal2011`). This project is a modified fork of **Hume Launcher** by Petrobot. It replaces the stock launcher with one
+A customised tvOS 26–style home screen for Android TV, maintained by **Nadakkal Launcher** (Abhinand.M, GitHub: `abhinandnadakkal2011`). This project is a modified fork of **Hume Launcher** by Petrobot. It replaces the stock launcher with one
 modelled on Apple TV — glass dock, full-screen carousel, Control Center, profiles — and is built to
 stay smooth on low-end TV boxes like the Xiaomi Mi Box. Plain Java, no Gradle, no third-party
 runtime libraries; the APK is about 1 MB.
