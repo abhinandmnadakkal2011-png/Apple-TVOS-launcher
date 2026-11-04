@@ -95,21 +95,41 @@ final class CustomWallpapers {
         return true;
     }
 
-    /** Save individually selected image URIs from TVs that do not provide a folder picker. */
+    /** Copy selected images into private app storage so Xiaomi TV picker grants cannot expire. */
     static boolean saveImages(Context c, List<Uri> uris, int resultFlags) {
         if (uris == null || uris.isEmpty()) return false;
+        java.io.File dir = new java.io.File(c.getFilesDir(), "custom_wallpapers");
+        if (!dir.exists() && !dir.mkdirs()) return false;
         java.util.Set<String> saved = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-        int takeFlags = resultFlags & (Intent.FLAG_GRANT_READ_URI_PERMISSION
-                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        int number = 0;
         for (Uri uri : uris) {
             if (uri == null) continue;
+            java.io.InputStream in = null;
+            java.io.FileOutputStream out = null;
             try {
-                c.getContentResolver().takePersistableUriPermission(uri,
-                        takeFlags & Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            } catch (Exception ignored) { }
-            saved.add(uri.toString());
+                in = c.getContentResolver().openInputStream(uri);
+                if (in == null) continue;
+                String type = c.getContentResolver().getType(uri);
+                String ext = "image/png".equalsIgnoreCase(type) ? ".png"
+                        : "image/webp".equalsIgnoreCase(type) ? ".webp"
+                        : "image/gif".equalsIgnoreCase(type) ? ".gif" : ".jpg";
+                java.io.File target = new java.io.File(dir, "wallpaper_" + number++ + ext);
+                out = new java.io.FileOutputStream(target);
+                byte[] buffer = new byte[16384];
+                int read;
+                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+                out.flush();
+                if (target.length() > 0) saved.add(Uri.fromFile(target).toString());
+                else target.delete();
+            } catch (Exception ignored) {
+                // Skip files that this TV's document provider cannot open.
+            } finally {
+                if (in != null) try { in.close(); } catch (Exception ignored) { }
+                if (out != null) try { out.close(); } catch (Exception ignored) { }
+            }
         }
         if (saved.isEmpty()) return false;
+        clearFolder(c);
         prefs(c).edit().remove(TREE).putStringSet(FILES, saved).putInt(INDEX, 0).apply();
         return true;
     }
@@ -124,9 +144,17 @@ final class CustomWallpapers {
         }
         java.util.Set<String> files = prefs(c).getStringSet(FILES, java.util.Collections.<String>emptySet());
         for (String file : files) {
-            try { c.getContentResolver().releasePersistableUriPermission(
-                    Uri.parse(file), Intent.FLAG_GRANT_READ_URI_PERMISSION); }
-            catch (Exception ignored) { }
+            try {
+                Uri uri = Uri.parse(file);
+                if ("file".equals(uri.getScheme())) {
+                    java.io.File local = new java.io.File(uri.getPath());
+                    java.io.File parent = local.getParentFile();
+                    if (parent != null && "custom_wallpapers".equals(parent.getName())) local.delete();
+                } else {
+                    c.getContentResolver().releasePersistableUriPermission(
+                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                }
+            } catch (Exception ignored) { }
         }
         prefs(c).edit().remove(TREE).remove(FILES).putInt(INDEX, 0).apply();
     }
