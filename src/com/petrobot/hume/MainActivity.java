@@ -686,11 +686,18 @@ public class MainActivity extends Activity {
 
         // Compact Dynamic Island-style media pill, centered along the top edge.
         nowPlayingIsland = new NowPlayingIsland(this);
+        nowPlayingIsland.setId(View.generateViewId());
+        weatherCard.setId(View.generateViewId());
+        if (searchButton != null) searchButton.setId(View.generateViewId());
         FrameLayout.LayoutParams np = new FrameLayout.LayoutParams(dp(440), dp(56), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
         np.topMargin = dp(18);
         root.addView(nowPlayingIsland, np);
         nowPlayingIsland.setNextFocusLeftId(weatherCard.getId());
-        if (searchButton != null) nowPlayingIsland.setNextFocusRightId(searchButton.getId());
+        weatherCard.setNextFocusRightId(nowPlayingIsland.getId());
+        if (searchButton != null) {
+            nowPlayingIsland.setNextFocusRightId(searchButton.getId());
+            searchButton.setNextFocusLeftId(nowPlayingIsland.getId());
+        }
 
         setContentView(root);
         Clicks.quiet(root);  // Android's own click sounds off: the Sounds switch decides
@@ -2900,6 +2907,11 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent ev) {
+        if (nowPlayingIsland != null && nowPlayingIsland.isExpanded()
+                && ev.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            if (ev.getAction() == KeyEvent.ACTION_UP) nowPlayingIsland.collapseForBack();
+            return true;
+        }
         if (launchOverlay != null) return true;
         // Idle full-screen carousel: the first press only brings the Home Screen back.
         if (idle) {
