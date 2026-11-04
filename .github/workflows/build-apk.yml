@@ -1,7 +1,9 @@
-name: Build Abhi Studio APK
+name: Build Nadakkal Launcher APK
 
 on:
   push:
+    branches: [main, 'feature/**']
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -35,7 +37,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: abhi-studio-launcher-apk
+          name: nadakkal-launcher-apk
           path: build/tvos-home.apk
           if-no-files-found: error
           retention-days: 30
