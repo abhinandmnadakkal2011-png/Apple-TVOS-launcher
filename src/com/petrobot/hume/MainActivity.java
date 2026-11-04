@@ -880,6 +880,11 @@ public class MainActivity extends Activity {
     /** Animate the same translucent frame to the newly focused app tile. */
     void moveFocusGlass(View tile) {
         if (focusGlass == null || root == null || moveIndex >= 0) return;
+        if (!getSharedPreferences("effects", MODE_PRIVATE).getBoolean("focus_glass", true)) {
+            focusGlass.animate().cancel();
+            focusGlass.setAlpha(0f);
+            return;
+        }
         int[] tilePos = new int[2];
         int[] rootPos = new int[2];
         tile.getLocationOnScreen(tilePos);
