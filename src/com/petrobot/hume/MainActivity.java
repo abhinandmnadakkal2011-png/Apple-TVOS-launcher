@@ -1870,6 +1870,11 @@ public class MainActivity extends Activity {
             customWallpaperView.setVisibility(View.GONE);
             wallView.setVisibility(View.VISIBLE);
             shelfView.setFocusable(!heroItems.isEmpty());
+            View focused = getCurrentFocus();
+            int tile = tiles.indexOf(focused);
+            boolean showHero = focused == shelfView || (hasDock() && tile >= 0 && tile < COLS);
+            setHeroShown(showHero);
+            if (showHero && !heroItems.isEmpty()) showHero(heroIndex, 0);
             return;
         }
         customWallpaperIndex = CustomWallpapers.index(this) % customWallpaperUris.size();
@@ -1899,7 +1904,15 @@ public class MainActivity extends Activity {
         heroIo.execute(() -> {
             Bitmap bitmap = CustomWallpapers.decode(MainActivity.this, uri, screenW, screenH);
             handler.post(() -> {
-                if (!customWallpaperShowing || index != customWallpaperIndex || bitmap == null) return;
+                if (!customWallpaperShowing || index != customWallpaperIndex) return;
+                if (bitmap == null) {
+                    customWallpaperShowing = false;
+                    customWallpaperView.setVisibility(View.GONE);
+                    wallView.setVisibility(View.VISIBLE);
+                    shelfView.setFocusable(!heroItems.isEmpty());
+                    loadHero();
+                    return;
+                }
                 customWallpaperView.animate().cancel();
                 customWallpaperView.setAlpha(0f);
                 customWallpaperView.setImageBitmap(bitmap);
