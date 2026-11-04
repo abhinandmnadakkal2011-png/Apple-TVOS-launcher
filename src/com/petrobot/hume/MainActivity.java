@@ -376,7 +376,7 @@ public class MainActivity extends Activity {
             startActivity(new Intent(this, SetupActivity.class));
             return;
         }
-        // Screensaver: Hume never holds the screen on unless the user turned the screensaver off here.
+        // Screensaver: Nadakkal Launcher never holds the screen on unless the user turned the screensaver off here.
         if (getSharedPreferences("screensaver", MODE_PRIVATE).getBoolean("allow", true)) {
             getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         } else {
@@ -386,13 +386,13 @@ public class MainActivity extends Activity {
         applyTabs();
         resetIdle();
         // Opened from the app list while another launcher is the home screen: offer once to take over.
-        // Not asked while Hume's switch already sends the Home button here (the stock launcher stays default).
+        // Not asked while Nadakkal Launcher's switch already sends the Home button here (the stock launcher stays default).
         if (SetupActivity.done(this) && !Perms.isDefaultHome(this) && !PowerService.HomeButton.active(this)
                 && !prefs.getBoolean("asked_default_home", false)) {
             prefs.edit().putBoolean("asked_default_home", true).apply();
             Clicks.dialog(this)
-                    .setTitle("Make Hume your home screen?")
-                    .setMessage("The Home button on the remote will open Hume Launcher.")
+                    .setTitle("Make Nadakkal Launcher your home screen?")
+                    .setMessage("The Home button on the remote will open Nadakkal Launcher Launcher.")
                     .setPositiveButton("Make Home Screen", (d, w) -> Perms.requestDefaultHome(this))
                     .setNegativeButton("Not Now", null).show();
         }
@@ -3491,7 +3491,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Clean: close the apps you've opened since the last clean. With Hume's accessibility switch on,
+     * Clean: close the apps you've opened since the last clean. With Nadakkal Launcher's accessibility switch on,
      * it presses Force stop on each app's info page (what you'd do by hand); otherwise Android is
      * asked to drop their background processes. The memory freed is measured.
      */
@@ -3840,7 +3840,7 @@ public class MainActivity extends Activity {
     /** Seconds without input before the dock slides away (Settings -> Home); 0 = never. */
     int idleSeconds() {
         int sec = Profiles.homePrefs(this).getInt("idle_sec", 20);
-        // Hume carousel chosen as the screensaver: it always takes over when idle.
+        // Nadakkal Launcher carousel chosen as the screensaver: it always takes over when idle.
         if (sec == 0 && !getSharedPreferences("screensaver", MODE_PRIVATE).getBoolean("allow", true)) sec = 20;
         return sec;
     }
