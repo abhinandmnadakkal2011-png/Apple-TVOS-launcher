@@ -689,6 +689,12 @@ public class SettingsActivity extends Activity {
                 refreshAll();
             }).show();
         });
+        row("Liquid Glass focus frame", () -> getSharedPreferences("effects", MODE_PRIVATE)
+                .getBoolean("focus_glass", true) ? "On" : "Off", () -> {
+            boolean on = !getSharedPreferences("effects", MODE_PRIVATE).getBoolean("focus_glass", true);
+            getSharedPreferences("effects", MODE_PRIVATE).edit().putBoolean("focus_glass", on).apply();
+            showAndFocus(HOME, "Liquid Glass focus frame");
+        });
         row("Navigation sounds", () -> Clicks.enabled(this) ? "On" : "Off",
                 () -> Clicks.setEnabled(this, !Clicks.enabled(this)));
         section("Home Screen");
