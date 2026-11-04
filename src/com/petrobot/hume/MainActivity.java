@@ -130,7 +130,6 @@ public class MainActivity extends Activity {
     final Handler handler = new Handler(Looper.getMainLooper());
 
     FrameLayout root;
-    View focusGlass;
     ImageView wallView;
     ImageView customWallpaperView;
     NowPlayingIsland nowPlayingIsland;
@@ -489,8 +488,6 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, match());
 
-        // Liquid-glass focus overlay removed; app tiles use their own focus animation only.
-        focusGlass = null;
 
         // Top shelf: header shown only inside the More Apps folder.
         FrameLayout shelf = new FrameLayout(this);
@@ -831,7 +828,6 @@ public class MainActivity extends Activity {
                             .setInterpolator(EASE).start();
                 }
                 topSheen.animate().alpha(1f).setDuration(Motion.d(200)).start();
-                moveFocusGlass(tile);
                 onTileFocused(index);
             } else {
                 cell.setTranslationZ(0);
