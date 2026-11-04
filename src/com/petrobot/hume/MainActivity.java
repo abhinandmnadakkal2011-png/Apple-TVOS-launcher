@@ -905,7 +905,7 @@ public class MainActivity extends Activity {
         focusGlass.animate().translationX(x).translationY(y)
                 .scaleX(sx).scaleY(sy).alpha(1f)
                 // A slightly longer ease-out makes the glass feel like it has gentle weight.
-                .setDuration(Motion.d(440)).setInterpolator(new PathInterpolator(0.16f, 1f, 0.3f, 1f)).start();
+                .setDuration(Motion.d(380)).setInterpolator(new PathInterpolator(0.18f, 0.72f, 0.22f, 1f)).start();
         if (focusGlass.getBackground() instanceof LiquidGlass) {
             ((LiquidGlass) focusGlass.getBackground()).setLit(true);
         }
