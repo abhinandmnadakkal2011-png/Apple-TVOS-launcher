@@ -51,7 +51,7 @@ public class SettingsActivity extends Activity {
     // tvOS-style pages: the main list opens a page per section; Back returns to the main list.
     static final String ROOT = "root", PROFILES = "Profiles", SHELF = "Top Shelf", PRESENT = "Presentation",
             INPUTS = "Inputs", WEATHER = "Weather", WATCHING = "Continue Watching", HOME = "Home",
-            PERMS = "Permissions", ABOUT = "About";
+            PERMS = "Permissions", ABOUT = "About", NOW_PLAYING = "Now Playing";
 
     FrameLayout leftPane;
     ScrollView scroller;
@@ -102,6 +102,7 @@ public class SettingsActivity extends Activity {
             case WEATHER: pageWeather(); break;
             case WATCHING: pageShelf(); break;  // older deep links: Continue Watching now lives in Top Shelf
             case HOME: pageHome(); break;
+            case NOW_PLAYING: pageNowPlaying(); break;
             case PERMS: pagePermissions(); break;
             case ABOUT: pageAbout(); break;
             default: pageRoot(); break;
@@ -214,6 +215,7 @@ public class SettingsActivity extends Activity {
             case WEATHER: grad = new int[]{0xFF5AC8FA, 0xFF2D6BD8}; glyph = null; break;
             case WATCHING: grad = new int[]{0xFFFF6482, 0xFFD6305A}; glyph = "present"; break;
             case HOME: grad = new int[]{0xFF30D158, 0xFF1E9E48}; glyph = "house"; break;
+            case NOW_PLAYING: grad = new int[]{0xFFFF375F, 0xFF9B1745}; glyph = "music"; break;
             case PERMS: grad = new int[]{0xFF8E8E93, 0xFF48484A}; glyph = "shield"; break;
             default: grad = new int[]{0xFF8E8E93, 0xFF3A3A3C}; glyph = "gear"; break;
         }
@@ -254,6 +256,8 @@ public class SettingsActivity extends Activity {
             int i = java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k);
             return MainActivity.WALL_NAMES[Math.max(0, i)];
         });
+        nav(NOW_PLAYING, () -> !NowPlayingIsland.enabled(this) ? "Off"
+                : MediaWatchService.granted(this) ? "Ready" : "Allow notification access");
         nav(PERMS, () -> {
             int missing = (Perms.hasListener(this) || !Perms.listenerSupported(this) ? 0 : 1) + (Perms.hasLocation(this) ? 0 : 1)
                     + (Perms.hasTvListings(this) || !WatchNext.supported() ? 0 : 1)
@@ -767,6 +771,35 @@ public class SettingsActivity extends Activity {
                 () -> Perms.requestDefaultHome(this));
         row("Wi-Fi name in Control Center", () -> Perms.hasLocation(this) ? "Allowed" : "Allow\u2026",
                 () -> Perms.requestLocation(this));
+    }
+
+    void pageNowPlaying() {
+        section("Now Playing Island");
+        row("Show Now Playing", () -> NowPlayingIsland.enabled(this) ? "On" : "Off", () -> {
+            NowPlayingIsland.setEnabled(this, !NowPlayingIsland.enabled(this));
+            showAndFocus(NOW_PLAYING, "Show Now Playing");
+        });
+        row("Show album artwork", () -> NowPlayingIsland.showArtwork(this) ? "On" : "Off", () -> {
+            NowPlayingIsland.setShowArtwork(this, !NowPlayingIsland.showArtwork(this));
+            showAndFocus(NOW_PLAYING, "Show album artwork");
+        });
+        row("Player appearance", () -> "glass".equals(NowPlayingIsland.style(this)) ? "Frosted glass" : "Classic black", () -> {
+            String[] choices = {"Classic black", "Frosted glass"};
+            int selected = "glass".equals(NowPlayingIsland.style(this)) ? 1 : 0;
+            dialog("Player appearance").setSingleChoiceItems(choices, selected, (d, which) -> {
+                NowPlayingIsland.setStyle(this, which == 1 ? "glass" : "black");
+                d.dismiss();
+                showAndFocus(NOW_PLAYING, "Player appearance");
+            }).show();
+        });
+        section("Playback access");
+        row("Notification access", () -> MediaWatchService.granted(this) ? "Allowed" : "Allow access",
+                () -> Perms.requestListener(this));
+        row("How it works", () -> "Appears only while music plays", () -> {
+            Clicks.dialog(this).setTitle("Now Playing")
+                    .setMessage("The island reads active media sessions from music and video apps. Focus it with your TV remote to expand the player. Use the progress bar to seek, or the previous, play/pause and next buttons to control playback.")
+                    .setPositiveButton("OK", null).show();
+        });
     }
 
     void pageAbout() {
