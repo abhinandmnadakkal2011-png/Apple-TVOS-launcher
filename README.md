@@ -7,6 +7,16 @@ runtime libraries; the APK is about 1 MB.
 
 ![Home screen](docs/images/home-dock-glass.jpg)
 
+## Now Playing Island
+
+When media is actively playing and notification access is enabled, a compact pill appears at the top centre of the Home screen. Focus it with the TV remote to expand an Apple-inspired player with album artwork, track details, a seek bar, previous, play/pause and next controls. The pill hides when playback is not active.
+
+Customize it in **Settings → Now Playing**:
+- Enable or disable the island.
+- Show or hide album artwork.
+- Choose Classic black or Frosted glass styling.
+- Grant notification access so Android can expose active media sessions.
+
 ## Features
 
 - **Home**: Liquid Glass dock, 6-across app grid in Apple's measured proportions, focus lift and
