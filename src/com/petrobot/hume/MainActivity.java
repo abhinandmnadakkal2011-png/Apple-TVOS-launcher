@@ -489,13 +489,14 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, match());
 
-        // One shared Liquid Glass focus frame glides between app tiles.
+        // One shared, backdrop-aware Liquid Glass focus lens glides between app tiles.
+        // It samples the wallpaper beneath it, with a bright rim, soft frost and subtle lensing.
         focusGlass = new View(this);
-        GradientDrawable focusGlassBg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0x45FFFFFF, 0x1EFFFFFF, 0x28FFFFFF});
-        focusGlassBg.setCornerRadius(radius + dp(12));
-        focusGlassBg.setStroke(dp(2), 0xA6FFFFFF);
-        focusGlass.setBackground(focusGlassBg);
+        LiquidGlass focusLens = new LiquidGlass(radius + dp(12), 0x24FFFFFF,
+                glassSource, screenW, screenH, unit);
+        focusLens.lens = dp(9);
+        focusLens.rimStrength = 0.72f;
+        focusGlass.setBackground(focusLens);
         focusGlass.setAlpha(0f);
         focusGlass.setFocusable(false);
         focusGlass.setClickable(false);
@@ -898,7 +899,11 @@ public class MainActivity extends Activity {
         }
         focusGlass.animate().translationX(x).translationY(y)
                 .scaleX(sx).scaleY(sy).alpha(1f)
-                .setDuration(Motion.d(380)).setInterpolator(EASE).start();
+                // A slightly longer ease-out makes the glass feel like it has gentle weight.
+                .setDuration(Motion.d(440)).setInterpolator(new PathInterpolator(0.16f, 1f, 0.3f, 1f)).start();
+        if (focusGlass.getBackground() instanceof LiquidGlass) {
+            ((LiquidGlass) focusGlass.getBackground()).setLit(true);
+        }
     }
 
     /** tvOS-style ambient colour field: soft glows of indigo, teal, magenta and amber on navy. */
