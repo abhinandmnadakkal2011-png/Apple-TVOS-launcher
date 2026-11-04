@@ -424,7 +424,7 @@ public class SetupActivity extends Activity {
         View mid = new View(this);
         page.addView(mid, new LinearLayout.LayoutParams(1, 0, 1f));
         TextView by = new TextView(this);
-        by.setText("by Petrobot");
+        by.setText("by Abhinand");
         by.setTextColor(0x80FFFFFF);
         by.setTypeface(Ui.font(this, "regular"));
         Ui.textSize(by, 13);
