@@ -317,7 +317,10 @@ final class NowPlayingIsland extends FrameLayout {
         return v == null || v.length() == 0 ? fallback : v.toString();
     }
     private void updateAll() {
-        if (controller == null) { setVisibility(GONE); return; }
+        if (!enabled(activity) || !MediaWatchService.granted(activity) || controller == null) {
+            setVisibility(GONE);
+            return;
+        }
         PlaybackState state = controller.getPlaybackState();
         if (state == null || (state.getState() != PlaybackState.STATE_PLAYING
                 && state.getState() != PlaybackState.STATE_BUFFERING)) {
