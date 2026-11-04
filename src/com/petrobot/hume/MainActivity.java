@@ -131,6 +131,20 @@ public class MainActivity extends Activity {
 
     FrameLayout root;
     ImageView wallView;
+    ImageView customWallpaperView;
+    boolean customWallpaperShowing;
+    List<String> customWallpaperUris = new ArrayList<>();
+    int customWallpaperIndex;
+    final Runnable customWallpaperAdvance = new Runnable() {
+        @Override public void run() {
+            if (!resumed || !customWallpaperShowing || !"timed".equals(CustomWallpapers.mode(MainActivity.this))
+                    || customWallpaperUris.size() < 2) return;
+            customWallpaperIndex = (customWallpaperIndex + 1) % customWallpaperUris.size();
+            CustomWallpapers.setIndex(MainActivity.this, customWallpaperIndex);
+            showCustomWallpaper(customWallpaperIndex);
+            handler.postDelayed(this, CustomWallpapers.intervalSeconds(MainActivity.this) * 1000L);
+        }
+    };
     /** Top shelf carousel: two crossfading backdrops + info panel. */
     ImageView heroBack, heroFront;
     View heroScrim, shade;
@@ -354,7 +368,8 @@ public class MainActivity extends Activity {
         }
         if (returningFromSettings && !folderMode && launchOverlay == null && moveIndex < 0) reload(currentKey());
         returningFromSettings = false;
-        loadHero();
+        refreshCustomWallpaper();
+        if (!customWallpaperShowing) loadHero();
         if (launchOverlay != null) finishLaunchReturn();
         // Setup not finished (e.g. Home was pressed during it): pick it up again.
         if (!SetupActivity.done(this)) {
@@ -390,6 +405,7 @@ public class MainActivity extends Activity {
         super.onPause();
         resumed = false;
         handler.removeCallbacks(heroAdvance);
+        handler.removeCallbacks(customWallpaperAdvance);
         handler.removeCallbacks(weatherTick);
         handler.removeCallbacks(idleRunnable);
         if (idle) exitIdle();
@@ -428,6 +444,13 @@ public class MainActivity extends Activity {
         heroFront = heroLayer();
         root.addView(heroBack, match());
         root.addView(heroFront, match());
+
+        // User-selected wallpapers sit behind the app grid and status controls, replacing
+        // the movie/news artwork without disturbing the rest of the Home layout.
+        customWallpaperView = new ImageView(this);
+        customWallpaperView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        customWallpaperView.setVisibility(View.GONE);
+        root.addView(customWallpaperView, match());
 
         shade = new View(this);
         shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
@@ -1697,6 +1720,7 @@ public class MainActivity extends Activity {
      * titles mixed in (if it's on) — one after every two items; or Continue Watching alone.
      */
     void loadHero() {
+        if (customWallpaperShowing) return;
         updateEmpty();
         boolean shelf = Suggestions.enabled(this) && Suggestions.ready(this);
         boolean cw = cwEnabled();
@@ -1807,6 +1831,16 @@ public class MainActivity extends Activity {
 
     /** Carousel vs launcher background: crossfade between them. */
     void setHeroShown(boolean show) {
+        if (customWallpaperShowing) {
+            heroShown = false;
+            handler.removeCallbacks(heroAdvance);
+            customWallpaperView.setVisibility(View.VISIBLE);
+            heroBack.setAlpha(0f);
+            heroFront.setAlpha(0f);
+            heroInfo.setAlpha(0f);
+            heroDots.setAlpha(0f);
+            return;
+        }
         show = show && !heroItems.isEmpty() && !folderMode;
         if (show == heroShown) return;
         heroShown = show;
@@ -1825,6 +1859,53 @@ public class MainActivity extends Activity {
         heroBack.animate().alpha(0f).setDuration(Motion.d(450)).start();
         handler.removeCallbacks(heroAdvance);
         if (show) scheduleAdvance();
+    }
+
+    /** Loads the selected folder and gives custom images priority over the news/movie carousel. */
+    void refreshCustomWallpaper() {
+        handler.removeCallbacks(customWallpaperAdvance);
+        customWallpaperUris = CustomWallpapers.images(this);
+        customWallpaperShowing = CustomWallpapers.enabled(this) && !customWallpaperUris.isEmpty();
+        if (!customWallpaperShowing) {
+            customWallpaperView.setVisibility(View.GONE);
+            wallView.setVisibility(View.VISIBLE);
+            shelfView.setFocusable(!heroItems.isEmpty());
+            return;
+        }
+        customWallpaperIndex = CustomWallpapers.index(this) % customWallpaperUris.size();
+        CustomWallpapers.setIndex(this, customWallpaperIndex);
+        heroShown = false;
+        handler.removeCallbacks(heroAdvance);
+        heroBack.setAlpha(0f);
+        heroFront.setAlpha(0f);
+        heroInfo.setAlpha(0f);
+        heroDots.setAlpha(0f);
+        heroScrim.setVisibility(View.GONE);
+        wallView.setVisibility(View.INVISIBLE);
+        shelfView.setFocusable(false);
+        customWallpaperView.setVisibility(View.VISIBLE);
+        customWallpaperView.setAlpha(1f);
+        showCustomWallpaper(customWallpaperIndex);
+        if (customWallpaperUris.size() > 1 && "timed".equals(CustomWallpapers.mode(this))) {
+            handler.postDelayed(customWallpaperAdvance,
+                    CustomWallpapers.intervalSeconds(this) * 1000L);
+        }
+    }
+
+    /** Decode away from the UI thread, then fade the next image into the same home-screen slot. */
+    void showCustomWallpaper(int index) {
+        if (index < 0 || index >= customWallpaperUris.size()) return;
+        final String uri = customWallpaperUris.get(index);
+        heroIo.execute(() -> {
+            Bitmap bitmap = CustomWallpapers.decode(MainActivity.this, uri, screenW, screenH);
+            handler.post(() -> {
+                if (!customWallpaperShowing || index != customWallpaperIndex || bitmap == null) return;
+                customWallpaperView.animate().cancel();
+                customWallpaperView.setAlpha(0f);
+                customWallpaperView.setImageBitmap(bitmap);
+                customWallpaperView.animate().alpha(1f).setDuration(Motion.d(650)).start();
+            });
+        });
     }
 
     void scheduleAdvance() {
@@ -3764,7 +3845,7 @@ public class MainActivity extends Activity {
      * fade, and the carousel keeps playing full screen with its title and summary at the bottom.
      */
     void enterIdle() {
-        if (idle || !resumed || !heroShown || heroItems.isEmpty() || continueMode() || folderMode
+        if (idle || !resumed || customWallpaperShowing || !heroShown || heroItems.isEmpty() || continueMode() || folderMode
                 || launchOverlay != null || pickerLayer != null || menuLayer != null || moveIndex >= 0) {
             resetIdle();
             return;
