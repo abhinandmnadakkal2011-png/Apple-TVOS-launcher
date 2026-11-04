@@ -130,6 +130,7 @@ public class MainActivity extends Activity {
     final Handler handler = new Handler(Looper.getMainLooper());
 
     FrameLayout root;
+    View focusGlass;
     ImageView wallView;
     ImageView customWallpaperView;
     NowPlayingIsland nowPlayingIsland;
@@ -488,6 +489,21 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, match());
 
+        // One shared Liquid Glass focus frame glides between app tiles.
+        focusGlass = new View(this);
+        GradientDrawable focusGlassBg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x45FFFFFF, 0x1EFFFFFF, 0x28FFFFFF});
+        focusGlassBg.setCornerRadius(radius + dp(12));
+        focusGlassBg.setStroke(dp(2), 0xA6FFFFFF);
+        focusGlass.setBackground(focusGlassBg);
+        focusGlass.setAlpha(0f);
+        focusGlass.setFocusable(false);
+        focusGlass.setClickable(false);
+        focusGlass.setElevation(dp(26));
+        FrameLayout.LayoutParams focusGlassLp = new FrameLayout.LayoutParams(
+                tileW + dp(18), tileH + dp(18), Gravity.TOP | Gravity.START);
+        root.addView(focusGlass, focusGlassLp);
+
         // Top shelf: header shown only inside the More Apps folder.
         FrameLayout shelf = new FrameLayout(this);
         shelfView = shelf;
@@ -827,6 +843,7 @@ public class MainActivity extends Activity {
                             .setInterpolator(EASE).start();
                 }
                 topSheen.animate().alpha(1f).setDuration(Motion.d(200)).start();
+                moveFocusGlass(tile);
                 onTileFocused(index);
             } else {
                 cell.setTranslationZ(0);
@@ -857,6 +874,31 @@ public class MainActivity extends Activity {
         });
         tiles.add(tile);
         return cell;
+    }
+
+    /** Animate the same translucent frame to the newly focused app tile. */
+    void moveFocusGlass(View tile) {
+        if (focusGlass == null || root == null || moveIndex >= 0) return;
+        int[] tilePos = new int[2];
+        int[] rootPos = new int[2];
+        tile.getLocationOnScreen(tilePos);
+        root.getLocationOnScreen(rootPos);
+        float w = tileW + dp(18);
+        float h = tileH + dp(18);
+        float sx = 1.18f, sy = 1.16f;
+        float x = tilePos[0] - rootPos[0] - dp(9) - (w * (sx - 1f) / 2f);
+        float y = tilePos[1] - rootPos[1] - dp(9) - (h * (sy - 1f) / 2f);
+        focusGlass.animate().cancel();
+        if (focusGlass.getVisibility() != View.VISIBLE) {
+            focusGlass.setTranslationX(x);
+            focusGlass.setTranslationY(y);
+            focusGlass.setScaleX(sx);
+            focusGlass.setScaleY(sy);
+            focusGlass.setVisibility(View.VISIBLE);
+        }
+        focusGlass.animate().translationX(x).translationY(y)
+                .scaleX(sx).scaleY(sy).alpha(1f)
+                .setDuration(Motion.d(380)).setInterpolator(EASE).start();
     }
 
     /** tvOS-style ambient colour field: soft glows of indigo, teal, magenta and amber on navy. */
