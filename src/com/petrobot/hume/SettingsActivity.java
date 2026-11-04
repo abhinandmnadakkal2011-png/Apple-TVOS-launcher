@@ -543,13 +543,26 @@ public class SettingsActivity extends Activity {
     static final int REQUEST_WALLPAPERS_FOLDER = 7101;
 
     void chooseWallpaperFolder() {
-        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        // Many Android TV builds omit ACTION_OPEN_DOCUMENT_TREE. Select images directly instead.
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        pick.addCategory(Intent.CATEGORY_OPENABLE);
+        pick.setType("image/*");
+        pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         pick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         try {
             startActivityForResult(pick, REQUEST_WALLPAPERS_FOLDER);
         } catch (Exception e) {
-            Toast.makeText(this, "This TV does not provide a folder picker. Open its file manager and try again.",
-                    Toast.LENGTH_LONG).show();
+            Intent fallback = new Intent(Intent.ACTION_GET_CONTENT);
+            fallback.addCategory(Intent.CATEGORY_OPENABLE);
+            fallback.setType("image/*");
+            fallback.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            try {
+                startActivityForResult(Intent.createChooser(fallback, "Choose wallpaper images"),
+                        REQUEST_WALLPAPERS_FOLDER);
+            } catch (Exception unavailable) {
+                Toast.makeText(this, "No image picker is available on this TV. Install or enable a file manager/gallery app.",
+                        Toast.LENGTH_LONG).show();
+            }
         }
     }
 
@@ -581,14 +594,23 @@ public class SettingsActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != REQUEST_WALLPAPERS_FOLDER || resultCode != RESULT_OK || data == null) return;
-        android.net.Uri uri = data.getData();
-        if (CustomWallpapers.saveFolder(this, uri, data.getFlags())) {
+        java.util.List<android.net.Uri> selected = new java.util.ArrayList<>();
+        if (data.getClipData() != null) {
+            android.content.ClipData clip = data.getClipData();
+            for (int i = 0; i < clip.getItemCount(); i++) {
+                android.net.Uri uri = clip.getItemAt(i).getUri();
+                if (uri != null) selected.add(uri);
+            }
+        } else if (data.getData() != null) {
+            selected.add(data.getData());
+        }
+        if (CustomWallpapers.saveImages(this, selected, data.getFlags())) {
             CustomWallpapers.setEnabled(this, true);
             int count = CustomWallpapers.images(this).size();
-            Toast.makeText(this, count == 0
-                    ? "Folder saved. Add JPG, PNG or WebP images to Wallpapers."
-                    : count + (count == 1 ? " wallpaper found" : " wallpapers found"),
+            Toast.makeText(this, count + (count == 1 ? " wallpaper selected" : " wallpapers selected"),
                     Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(this, "No wallpaper images were selected", Toast.LENGTH_SHORT).show();
         }
         show(HOME);
     }
@@ -614,7 +636,7 @@ public class SettingsActivity extends Activity {
             CustomWallpapers.setEnabled(this, !CustomWallpapers.enabled(this));
             showAndFocus(HOME, "Use custom wallpapers");
         });
-        row("Choose Wallpapers folder", () -> {
+        row("Choose wallpaper images", () -> {
             int count = CustomWallpapers.images(this).size();
             return count == 0 ? "Choose a folder" : count + (count == 1 ? " image" : " images");
         }, this::chooseWallpaperFolder);
