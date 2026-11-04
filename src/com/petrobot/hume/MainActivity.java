@@ -489,21 +489,8 @@ public class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, match());
 
-        // One shared, backdrop-aware Liquid Glass focus lens glides between app tiles.
-        // It samples the wallpaper beneath it, with a bright rim, soft frost and subtle lensing.
-        focusGlass = new View(this);
-        LiquidGlass focusLens = new LiquidGlass(radius + dp(12), 0x24FFFFFF,
-                glassSource, screenW, screenH, unit);
-        focusLens.lens = dp(9);
-        focusLens.rimStrength = 0.72f;
-        focusGlass.setBackground(focusLens);
-        focusGlass.setAlpha(0f);
-        focusGlass.setFocusable(false);
-        focusGlass.setClickable(false);
-        focusGlass.setElevation(dp(26));
-        FrameLayout.LayoutParams focusGlassLp = new FrameLayout.LayoutParams(
-                tileW + dp(18), tileH + dp(18), Gravity.TOP | Gravity.START);
-        root.addView(focusGlass, focusGlassLp);
+        // Liquid-glass focus overlay removed; app tiles use their own focus animation only.
+        focusGlass = null;
 
         // Top shelf: header shown only inside the More Apps folder.
         FrameLayout shelf = new FrameLayout(this);
@@ -877,38 +864,9 @@ public class MainActivity extends Activity {
         return cell;
     }
 
-    /** Animate the same translucent frame to the newly focused app tile. */
+    /** No shared glass frame: focus is indicated by the app tile's own lift animation. */
     void moveFocusGlass(View tile) {
-        if (focusGlass == null || root == null || moveIndex >= 0) return;
-        if (!getSharedPreferences("effects", MODE_PRIVATE).getBoolean("focus_glass", true)) {
-            focusGlass.animate().cancel();
-            focusGlass.setAlpha(0f);
-            return;
-        }
-        int[] tilePos = new int[2];
-        int[] rootPos = new int[2];
-        tile.getLocationOnScreen(tilePos);
-        root.getLocationOnScreen(rootPos);
-        float w = tileW + dp(18);
-        float h = tileH + dp(18);
-        float sx = 1.18f, sy = 1.16f;
-        float x = tilePos[0] - rootPos[0] - dp(9) - (w * (sx - 1f) / 2f);
-        float y = tilePos[1] - rootPos[1] - dp(9) - (h * (sy - 1f) / 2f);
-        focusGlass.animate().cancel();
-        if (focusGlass.getVisibility() != View.VISIBLE) {
-            focusGlass.setTranslationX(x);
-            focusGlass.setTranslationY(y);
-            focusGlass.setScaleX(sx);
-            focusGlass.setScaleY(sy);
-            focusGlass.setVisibility(View.VISIBLE);
-        }
-        focusGlass.animate().translationX(x).translationY(y)
-                .scaleX(sx).scaleY(sy).alpha(1f)
-                // A slightly longer ease-out makes the glass feel like it has gentle weight.
-                .setDuration(Motion.d(380)).setInterpolator(new PathInterpolator(0.18f, 0.72f, 0.22f, 1f)).start();
-        if (focusGlass.getBackground() instanceof LiquidGlass) {
-            ((LiquidGlass) focusGlass.getBackground()).setLit(true);
-        }
+        // Intentionally empty; the liquid-glass rectangle has been removed.
     }
 
     /** tvOS-style ambient colour field: soft glows of indigo, teal, magenta and amber on navy. */
