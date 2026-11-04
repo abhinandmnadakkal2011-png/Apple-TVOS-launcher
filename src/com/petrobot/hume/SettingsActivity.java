@@ -145,7 +145,7 @@ public class SettingsActivity extends Activity {
         else refreshAll();
     }
 
-    /** Left side: the page's icon (Petrobot on the main list), its title, and the brand line. */
+    /** Left side: the page icon, its title, and the Abhi Studio brand line. */
     void buildLeft(String p) {
         leftPane.removeAllViews();
         LinearLayout left = new LinearLayout(this);
@@ -153,7 +153,7 @@ public class SettingsActivity extends Activity {
         left.setGravity(Gravity.CENTER_HORIZONTAL);
         android.view.View icon;
         if (p.equals(ROOT)) {
-            // Petrobot's mark on a white 5:3 tile, the same shape and radius as the Home cards.
+            // Studio mark on a white 5:3 tile, the same shape and radius as the Home cards.
             FrameLayout tile = new FrameLayout(this);
             GradientDrawable plate = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                     new int[]{0xFFFFFFFF, 0xFFE9EAEE});
@@ -189,7 +189,7 @@ public class SettingsActivity extends Activity {
 
         if (p.equals(ROOT)) {
             TextView by = new TextView(this);
-            by.setText("Hume Launcher by Petrobot");
+            by.setText("Abhi Studio by Abhinand.M");
             by.setTextColor(0x8CFFFFFF);
             by.setTypeface(Ui.font(this, "regular"));
             Ui.textSize(by, 13);
@@ -691,8 +691,9 @@ public class SettingsActivity extends Activity {
     }
 
     void pageAbout() {
-        row("Hume Launcher", () -> "Version " + version(), () -> { });
-        row("Made by", () -> "Petrobot", () -> { });
+        row("Abhi Studio", () -> "Version " + version(), () -> { });
+        row("Made by", () -> "Abhinand.M", () -> { });
+        row("GitHub", () -> "abhinandnadakkal2011", () -> { });
         row("Weather", () -> Weather.sourceName(Weather.source(this)), () -> { });
         row("News", () -> News.sources(this).size() + " Indian newsrooms", () -> { });
     }
