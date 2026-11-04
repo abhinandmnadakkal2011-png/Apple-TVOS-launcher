@@ -145,7 +145,7 @@ public class SettingsActivity extends Activity {
         else refreshAll();
     }
 
-    /** Left side: the page icon, its title, and the Abhi Studio brand line. */
+    /** Left side: the page icon, its title, and the Nadakkal Launcher brand line. */
     void buildLeft(String p) {
         leftPane.removeAllViews();
         LinearLayout left = new LinearLayout(this);
@@ -153,14 +153,14 @@ public class SettingsActivity extends Activity {
         left.setGravity(Gravity.CENTER_HORIZONTAL);
         android.view.View icon;
         if (p.equals(ROOT)) {
-            // Studio mark on a white 5:3 tile, the same shape and radius as the Home cards.
+            // Launcher mark on a white 5:3 tile, the same shape and radius as the Home cards.
             FrameLayout tile = new FrameLayout(this);
             GradientDrawable plate = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                     new int[]{0xFFFFFFFF, 0xFFE9EAEE});
             plate.setCornerRadius(Ui.px(this, 12));
             tile.setBackground(plate);
             ImageView mark = new ImageView(this);
-            mark.setImageResource(R.drawable.petrobot_mark);
+            mark.setImageResource(R.drawable.ic_launcher);
             mark.setScaleType(ImageView.ScaleType.FIT_CENTER);
             tile.addView(mark, new FrameLayout.LayoutParams(Ui.px(this, 58), Ui.px(this, 58), Gravity.CENTER));
             icon = tile;
@@ -189,7 +189,7 @@ public class SettingsActivity extends Activity {
 
         if (p.equals(ROOT)) {
             TextView by = new TextView(this);
-            by.setText("Abhi Studio by Abhinand.M");
+            by.setText("Nadakkal Launcher by Abhinand");
             by.setTextColor(0x8CFFFFFF);
             by.setTypeface(Ui.font(this, "regular"));
             Ui.textSize(by, 13);
@@ -247,6 +247,9 @@ public class SettingsActivity extends Activity {
         if (!Inputs.list(this).isEmpty()) nav(INPUTS, () -> Inputs.showCard(this) ? "On" : "Off");
         nav(WEATHER, () -> !Weather.enabled(this) ? "Off" : Weather.place(this).isEmpty() ? "On" : Weather.place(this));
         nav(HOME, () -> {
+            if (CustomWallpapers.enabled(this) && !CustomWallpapers.images(this).isEmpty()) {
+                return "Custom wallpapers";
+            }
             String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
             int i = java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k);
             return MainActivity.WALL_NAMES[Math.max(0, i)];
@@ -533,8 +536,61 @@ public class SettingsActivity extends Activity {
         });
     }
 
+    static final int REQUEST_WALLPAPERS_FOLDER = 7101;
+
+    void chooseWallpaperFolder() {
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        pick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try {
+            startActivityForResult(pick, REQUEST_WALLPAPERS_FOLDER);
+        } catch (Exception e) {
+            Toast.makeText(this, "This TV does not provide a folder picker. Open its file manager and try again.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    void chooseWallpaperRotation() {
+        String[] names = {"Timed rotation", "On every TV startup"};
+        int selected = "boot".equals(CustomWallpapers.mode(this)) ? 1 : 0;
+        dialog("Wallpaper rotation").setSingleChoiceItems(names, selected, (d, which) -> {
+            CustomWallpapers.setMode(this, which == 1 ? "boot" : "timed");
+            d.dismiss();
+            showAndFocus(HOME, "Rotation mode");
+        }).show();
+    }
+
+    void chooseWallpaperInterval() {
+        int[] seconds = {15, 30, 60, 300};
+        String[] names = {"15 seconds", "30 seconds  (default)", "1 minute", "5 minutes"};
+        int selected = 1;
+        for (int i = 0; i < seconds.length; i++) {
+            if (seconds[i] == CustomWallpapers.intervalSeconds(this)) selected = i;
+        }
+        dialog("Change wallpaper every").setSingleChoiceItems(names, selected, (d, which) -> {
+            CustomWallpapers.setIntervalSeconds(this, seconds[which]);
+            d.dismiss();
+            showAndFocus(HOME, "Change interval");
+        }).show();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_WALLPAPERS_FOLDER || resultCode != RESULT_OK || data == null) return;
+        android.net.Uri uri = data.getData();
+        if (CustomWallpapers.saveFolder(this, uri, data.getFlags())) {
+            CustomWallpapers.setEnabled(this, true);
+            int count = CustomWallpapers.images(this).size();
+            Toast.makeText(this, count == 0
+                    ? "Folder saved. Add JPG, PNG or WebP images to Wallpapers."
+                    : count + (count == 1 ? " wallpaper found" : " wallpapers found"),
+                    Toast.LENGTH_LONG).show();
+        }
+        show(HOME);
+    }
+
     void pageHome() {
-        row("Home screen", () -> Perms.isDefaultHome(this) ? "Hume Launcher" : "Make Hume the home screen\u2026",
+        row("Home screen", () -> Perms.isDefaultHome(this) ? "Nadakkal Launcher" : "Make Nadakkal the home screen\u2026",
                 () -> Perms.requestDefaultHome(this));
         row("Background", () -> {
             String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
@@ -549,6 +605,29 @@ public class SettingsActivity extends Activity {
                 d.dismiss();
             }).show();
         });
+        section("Custom Wallpapers");
+        row("Use custom wallpapers", () -> CustomWallpapers.enabled(this) ? "On" : "Off", () -> {
+            CustomWallpapers.setEnabled(this, !CustomWallpapers.enabled(this));
+            showAndFocus(HOME, "Use custom wallpapers");
+        });
+        row("Choose Wallpapers folder", () -> {
+            int count = CustomWallpapers.images(this).size();
+            return count == 0 ? "Choose a folder" : count + (count == 1 ? " image" : " images");
+        }, this::chooseWallpaperFolder);
+        row("Rotation mode", () -> "boot".equals(CustomWallpapers.mode(this))
+                ? "On every TV startup" : "Timed rotation", this::chooseWallpaperRotation);
+        if ("timed".equals(CustomWallpapers.mode(this))) {
+            row("Change interval", () -> CustomWallpapers.intervalSeconds(this) + " seconds",
+                    this::chooseWallpaperInterval);
+        }
+        if (CustomWallpapers.hasFolder(this)) {
+            row("Forget Wallpapers folder", () -> "", () -> {
+                CustomWallpapers.clearFolder(this);
+                showAndFocus(HOME, "Choose Wallpapers folder");
+                Toast.makeText(this, "Wallpaper folder access cleared", Toast.LENGTH_SHORT).show();
+            });
+        }
+        section("Start with the TV");
         row("Home button opens Hume", () -> PowerService.HomeButton.isDefaultHome(this) ? "Not needed"
                 : !PowerService.HomeButton.enabled(this) ? "Off"
                 : Perms.hasAccessibility(this) ? "On" : "Needs Hume\u2019s switch\u2026", this::toggleHomeButton);
@@ -691,7 +770,7 @@ public class SettingsActivity extends Activity {
     }
 
     void pageAbout() {
-        row("Abhi Studio", () -> "Version " + version(), () -> { });
+        row("Nadakkal Launcher", () -> "Version " + version(), () -> { });
         row("Made by", () -> "Abhinand.M", () -> { });
         row("GitHub", () -> "abhinandnadakkal2011", () -> { });
         row("Weather", () -> Weather.sourceName(Weather.source(this)), () -> { });
