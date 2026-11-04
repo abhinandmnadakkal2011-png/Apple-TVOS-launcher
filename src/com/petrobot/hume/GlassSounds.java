@@ -5,7 +5,7 @@ import android.media.AudioFormat;
 import android.media.AudioTrack;
 import android.content.Context;
 
-/** Tiny synthesized UI sounds: no bundled audio files, network access, or system click tones. */
+/** Original tvOS-inspired UI tones: warm low-end thumps with a clean, short upper transient. */
 final class GlassSounds {
     private static final int RATE = 44100;
     private static AudioTrack moveTrack;
@@ -16,8 +16,8 @@ final class GlassSounds {
     static synchronized void init(Context context) {
         if (moveTrack != null && selectTrack != null) return;
         try {
-            moveTrack = createTrack(glassTick());
-            selectTrack = createTrack(glassTap());
+            moveTrack = createTrack(navigationThump());
+            selectTrack = createTrack(selectionThump());
         } catch (Throwable ignored) {
             release();
         }
@@ -40,36 +40,46 @@ final class GlassSounds {
                 .setBufferSizeInBytes(pcm.length * 2)
                 .build();
         track.write(pcm, 0, pcm.length, AudioTrack.WRITE_BLOCKING);
-        track.setVolume(0.34f);
+        track.setVolume(0.58f);
         return track;
     }
 
-    /** Short bright upward glass tick for D-pad movement. */
-    private static short[] glassTick() {
-        int count = RATE * 48 / 1000;
+    /** A rounded, low-pitched 95–145 Hz movement pulse with a subtle crisp edge. */
+    private static short[] navigationThump() {
+        int count = RATE * 92 / 1000;
         short[] pcm = new short[count];
+        double phase = 0.0;
         for (int i = 0; i < count; i++) {
             float t = i / (float) RATE;
-            float progress = i / (float) count;
-            float frequency = 1420f + 620f * progress;
-            float envelope = (float) Math.pow(1f - progress, 2.2);
-            float wave = (float) Math.sin(2.0 * Math.PI * frequency * t);
-            pcm[i] = (short) (wave * envelope * 5100f);
+            float p = i / (float) count;
+            float freq = 145f - 48f * p;
+            phase += 2.0 * Math.PI * freq / RATE;
+            float env = (float) Math.pow(1f - p, 2.0);
+            float low = (float) Math.sin(phase);
+            float body = (float) Math.sin(phase * 2.02);
+            float tick = (float) Math.sin(2.0 * Math.PI * 760f * t) * (float) Math.exp(-p * 32f);
+            float sample = (low * 0.72f + body * 0.18f) * env + tick * 0.10f;
+            pcm[i] = (short) (sample * 7800f);
         }
         return pcm;
     }
 
-    /** Softer two-harmonic tap for selecting an app or going Back. */
-    private static short[] glassTap() {
-        int count = RATE * 68 / 1000;
+    /** Deeper, fuller 82–120 Hz selection thump with a gentle 500 Hz attack. */
+    private static short[] selectionThump() {
+        int count = RATE * 145 / 1000;
         short[] pcm = new short[count];
+        double phase = 0.0;
         for (int i = 0; i < count; i++) {
             float t = i / (float) RATE;
-            float progress = i / (float) count;
-            float envelope = (float) Math.pow(1f - progress, 2.8);
-            float wave = (float) (Math.sin(2.0 * Math.PI * 980f * t)
-                    + 0.32 * Math.sin(2.0 * Math.PI * 1680f * t));
-            pcm[i] = (short) (wave * envelope * 3000f);
+            float p = i / (float) count;
+            float freq = 122f - 40f * p;
+            phase += 2.0 * Math.PI * freq / RATE;
+            float env = (float) Math.pow(1f - p, 2.15);
+            float sub = (float) Math.sin(phase);
+            float harmonic = (float) Math.sin(phase * 2.0);
+            float attack = (float) Math.sin(2.0 * Math.PI * 510f * t) * (float) Math.exp(-p * 24f);
+            float sample = (sub * 0.78f + harmonic * 0.14f) * env + attack * 0.08f;
+            pcm[i] = (short) (sample * 9200f);
         }
         return pcm;
     }
