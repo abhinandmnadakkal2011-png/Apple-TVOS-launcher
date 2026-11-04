@@ -52,7 +52,7 @@
     </queries>
 
     <application
-        android:label="Abhi Studio"
+        android:label="Nadakkal Launcher"
         android:icon="@drawable/ic_launcher"
         android:banner="@drawable/banner"
         android:theme="@style/HomeTheme"
@@ -82,18 +82,24 @@
         <receiver
             android:name=".SleepReceiver$Admin"
             android:exported="true"
-            android:label="Abhi Studio sleep"
+            android:label="Nadakkal Launcher sleep"
             android:permission="android.permission.BIND_DEVICE_ADMIN">
             <meta-data android:name="android.app.device_admin" android:resource="@xml/device_admin" />
             <intent-filter>
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>
+        <receiver android:name=".WallpaperBootReceiver" android:enabled="true" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
         <receiver android:name=".SleepReceiver" android:exported="false" />
         <service
             android:name=".PowerService"
             android:exported="true"
-            android:label="Hume Launcher"
+            android:label="Nadakkal Launcher"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
@@ -105,7 +111,7 @@
         <service
             android:name=".MediaWatchService"
             android:exported="true"
-            android:label="Abhi Studio – Do Not Disturb"
+            android:label="Nadakkal Launcher – Do Not Disturb"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
