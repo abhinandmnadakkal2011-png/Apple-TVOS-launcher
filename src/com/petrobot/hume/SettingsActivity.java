@@ -628,9 +628,9 @@ public class SettingsActivity extends Activity {
             });
         }
         section("Start with the TV");
-        row("Home button opens Hume", () -> PowerService.HomeButton.isDefaultHome(this) ? "Not needed"
+        row("Home button opens Nadakkal Launcher", () -> PowerService.HomeButton.isDefaultHome(this) ? "Not needed"
                 : !PowerService.HomeButton.enabled(this) ? "Off"
-                : Perms.hasAccessibility(this) ? "On" : "Needs Hume\u2019s switch\u2026", this::toggleHomeButton);
+                : Perms.hasAccessibility(this) ? "On" : "Needs Nadakkal Launcher\u2019s switch\u2026", this::toggleHomeButton);
         section("Start with the TV");
         row("Open", () -> Startup.label(this), this::chooseStartup);
         if (!Startup.target(this).isEmpty()) {
@@ -641,14 +641,14 @@ public class SettingsActivity extends Activity {
                     d.dismiss();
                     refreshAll();
                     if (w == 1 && !Perms.hasAccessibility(this)) {
-                        Perms.requestAccessibility(this, "Android lets Hume open an app when the TV wakes only "
-                                + "with Hume\u2019s accessibility switch on.");
+                        Perms.requestAccessibility(this, "Android lets Nadakkal Launcher open an app when the TV wakes only "
+                                + "with Nadakkal Launcher\u2019s accessibility switch on.");
                     }
                 }).show();
             });
             if (Startup.onWake(this) && !Perms.hasAccessibility(this)) {
-                row("Waking into it", () -> "Needs Hume\u2019s switch\u2026", () -> Perms.requestAccessibility(this,
-                        "Android lets Hume open an app when the TV wakes only with Hume\u2019s accessibility switch on."));
+                row("Waking into it", () -> "Needs Nadakkal Launcher\u2019s switch\u2026", () -> Perms.requestAccessibility(this,
+                        "Android lets Nadakkal Launcher open an app when the TV wakes only with Nadakkal Launcher\u2019s accessibility switch on."));
             }
             if (com.petrobot.hume.present.Presenter.enabled(this) && com.petrobot.hume.present.Presenter.startOnBoot(this)) {
                 row("At boot", () -> "Presentation starts instead", () -> show(PRESENT));
@@ -681,8 +681,8 @@ public class SettingsActivity extends Activity {
             }).show();
         });
         section("Screensaver");
-        row("Screensaver on Home", () -> screensaverAllowed() ? "System screensaver" : "Hume carousel", () -> {
-            String[] names = {"System screensaver  (" + dreamLabel() + ")", "Hume full-screen carousel"};
+        row("Screensaver on Home", () -> screensaverAllowed() ? "System screensaver" : "Nadakkal Launcher carousel", () -> {
+            String[] names = {"System screensaver  (" + dreamLabel() + ")", "Nadakkal Launcher full-screen carousel"};
             dialog("Screensaver on Home").setSingleChoiceItems(names, screensaverAllowed() ? 0 : 1, (d, w) -> {
                 getSharedPreferences("screensaver", MODE_PRIVATE).edit().putBoolean("allow", w == 0).apply();
                 refreshAll();
@@ -717,12 +717,12 @@ public class SettingsActivity extends Activity {
     /** Home button override: on/off, asking for the accessibility switch when it's needed. */
     void toggleHomeButton() {
         if (PowerService.HomeButton.isDefaultHome(this)) {
-            Toast.makeText(this, "Hume is already the home app, so the Home button opens it.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Nadakkal Launcher is already the home app, so the Home button opens it.", Toast.LENGTH_LONG).show();
             return;
         }
         boolean on = PowerService.HomeButton.enabled(this);
         if (on && !Perms.hasAccessibility(this)) {
-            Perms.requestAccessibility(this, "This TV keeps its own home screen. With Hume\u2019s switch on, Hume opens "
+            Perms.requestAccessibility(this, "This TV keeps its own home screen. With Nadakkal Launcher\u2019s switch on, Nadakkal Launcher opens "
                     + "whenever that home screen appears, so the Home button brings you here.");
             return;
         }
@@ -754,7 +754,7 @@ public class SettingsActivity extends Activity {
 
     void pagePermissions() {
         row("Home button & Start with the TV", () -> Perms.hasAccessibility(this) ? "Allowed" : "Allow\u2026",
-                () -> Perms.requestAccessibility(this, "Hume\u2019s switch lets it open itself when the TV\u2019s own "
+                () -> Perms.requestAccessibility(this, "Nadakkal Launcher\u2019s switch lets it open itself when the TV\u2019s own "
                         + "home screen appears, and open your chosen app when the TV wakes."));
         row("Continue Watching (apps\u2019 Watch Next)", () -> Perms.hasTvListings(this) ? "Allowed"
                 : WatchNext.supported() ? "Allow\u2026" : "Not on this TV", () -> Perms.requestTvListings(this));
@@ -763,7 +763,7 @@ public class SettingsActivity extends Activity {
                 () -> Perms.requestListener(this));
         row("Power Off & Sleep Timer", () -> Perms.hasAdmin(this) ? "Allowed"
                 : Perms.adminSupported(this) ? "Allow\u2026" : "Not on this TV", () -> Perms.requestAdmin(this));
-        row("Hume as the home screen", () -> Perms.isDefaultHome(this) ? "Yes" : "Set\u2026",
+        row("Nadakkal Launcher as the home screen", () -> Perms.isDefaultHome(this) ? "Yes" : "Set\u2026",
                 () -> Perms.requestDefaultHome(this));
         row("Wi-Fi name in Control Center", () -> Perms.hasLocation(this) ? "Allowed" : "Allow\u2026",
                 () -> Perms.requestLocation(this));
