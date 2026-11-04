@@ -51,7 +51,7 @@ public class SettingsActivity extends Activity {
     // tvOS-style pages: the main list opens a page per section; Back returns to the main list.
     static final String ROOT = "root", PROFILES = "Profiles", SHELF = "Top Shelf", PRESENT = "Presentation",
             INPUTS = "Inputs", WEATHER = "Weather", WATCHING = "Continue Watching", HOME = "Home",
-            PERMS = "Permissions", ABOUT = "About", NOW_PLAYING = "Now Playing";
+            PERMS = "Permissions", ABOUT = "About", NOW_PLAYING = "Now Playing", MY_WALLPAPERS = "My Wallpapers";
 
     FrameLayout leftPane;
     ScrollView scroller;
@@ -102,6 +102,7 @@ public class SettingsActivity extends Activity {
             case WEATHER: pageWeather(); break;
             case WATCHING: pageShelf(); break;  // older deep links: Continue Watching now lives in Top Shelf
             case HOME: pageHome(); break;
+            case MY_WALLPAPERS: pageMyWallpapers(); break;
             case NOW_PLAYING: pageNowPlaying(); break;
             case PERMS: pagePermissions(); break;
             case ABOUT: pageAbout(); break;
@@ -216,6 +217,7 @@ public class SettingsActivity extends Activity {
             case WATCHING: grad = new int[]{0xFFFF6482, 0xFFD6305A}; glyph = "present"; break;
             case HOME: grad = new int[]{0xFF30D158, 0xFF1E9E48}; glyph = "house"; break;
             case NOW_PLAYING: grad = new int[]{0xFFFF375F, 0xFF9B1745}; glyph = "music"; break;
+            case MY_WALLPAPERS: grad = new int[]{0xFF64D2FF, 0xFF2356A8}; glyph = "image"; break;
             case PERMS: grad = new int[]{0xFF8E8E93, 0xFF48484A}; glyph = "shield"; break;
             default: grad = new int[]{0xFF8E8E93, 0xFF3A3A3C}; glyph = "gear"; break;
         }
@@ -249,13 +251,12 @@ public class SettingsActivity extends Activity {
         if (!Inputs.list(this).isEmpty()) nav(INPUTS, () -> Inputs.showCard(this) ? "On" : "Off");
         nav(WEATHER, () -> !Weather.enabled(this) ? "Off" : Weather.place(this).isEmpty() ? "On" : Weather.place(this));
         nav(HOME, () -> {
-            if (CustomWallpapers.enabled(this) && !CustomWallpapers.images(this).isEmpty()) {
-                return "Custom wallpapers";
-            }
             String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
             int i = java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k);
             return MainActivity.WALL_NAMES[Math.max(0, i)];
         });
+        nav(MY_WALLPAPERS, () -> CustomWallpapers.images(this).size()
+                + (CustomWallpapers.images(this).size() == 1 ? " saved" : " saved"));
         nav(NOW_PLAYING, () -> !NowPlayingIsland.enabled(this) ? "Off"
                 : MediaWatchService.granted(this) ? "Ready" : "Allow notification access");
         nav(PERMS, () -> {
@@ -615,6 +616,41 @@ public class SettingsActivity extends Activity {
         show(HOME);
     }
 
+    /** Dedicated wallpaper library page; replaces the older inline Home-page controls. */
+    void pageMyWallpapers() {
+        int count = CustomWallpapers.images(this).size();
+        section("Your Wallpaper Library");
+        row("Add wallpapers", () -> "Choose images from this TV", this::chooseWallpaperFolder);
+        row("Use personal wallpapers", () -> CustomWallpapers.enabled(this) ? "On" : "Off", () -> {
+            CustomWallpapers.setEnabled(this, !CustomWallpapers.enabled(this));
+            showAndFocus(MY_WALLPAPERS, "Use personal wallpapers");
+        });
+        row("Saved images", () -> count + (count == 1 ? " wallpaper" : " wallpapers"), () -> {
+            Toast.makeText(this, count == 0 ? "No wallpapers added yet" : count + " wallpapers saved in Nadakkal Launcher",
+                    Toast.LENGTH_SHORT).show();
+        });
+        row("Rotation", () -> "boot".equals(CustomWallpapers.mode(this))
+                ? "Shuffle on TV startup" : "Automatic slideshow", this::chooseWallpaperRotation);
+        if ("timed".equals(CustomWallpapers.mode(this))) {
+            row("Slideshow interval", () -> CustomWallpapers.intervalSeconds(this) + " seconds",
+                    this::chooseWallpaperInterval);
+        }
+        if (count > 0 || CustomWallpapers.hasFolder(this)) {
+            row("Remove all my wallpapers", () -> "Clear saved images", () -> {
+                new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                        .setTitle("Remove all wallpapers?")
+                        .setMessage("This removes the images saved inside Nadakkal Launcher. Your original photos on the TV will not be deleted.")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Remove", (d, w) -> {
+                            CustomWallpapers.clearFolder(this);
+                            CustomWallpapers.setEnabled(this, false);
+                            showAndFocus(MY_WALLPAPERS, "Add wallpapers");
+                            Toast.makeText(this, "Personal wallpapers removed", Toast.LENGTH_SHORT).show();
+                        }).show();
+            });
+        }
+    }
+
     void pageHome() {
         row("Home screen", () -> Perms.isDefaultHome(this) ? "Nadakkal Launcher" : "Make Nadakkal the home screen\u2026",
                 () -> Perms.requestDefaultHome(this));
@@ -631,28 +667,6 @@ public class SettingsActivity extends Activity {
                 d.dismiss();
             }).show();
         });
-        section("Custom Wallpapers");
-        row("Use custom wallpapers", () -> CustomWallpapers.enabled(this) ? "On" : "Off", () -> {
-            CustomWallpapers.setEnabled(this, !CustomWallpapers.enabled(this));
-            showAndFocus(HOME, "Use custom wallpapers");
-        });
-        row("Choose wallpaper images", () -> {
-            int count = CustomWallpapers.images(this).size();
-            return count == 0 ? "Choose a folder" : count + (count == 1 ? " image" : " images");
-        }, this::chooseWallpaperFolder);
-        row("Rotation mode", () -> "boot".equals(CustomWallpapers.mode(this))
-                ? "On every TV startup" : "Timed rotation", this::chooseWallpaperRotation);
-        if ("timed".equals(CustomWallpapers.mode(this))) {
-            row("Change interval", () -> CustomWallpapers.intervalSeconds(this) + " seconds",
-                    this::chooseWallpaperInterval);
-        }
-        if (CustomWallpapers.hasFolder(this)) {
-            row("Forget Wallpapers folder", () -> "", () -> {
-                CustomWallpapers.clearFolder(this);
-                showAndFocus(HOME, "Choose Wallpapers folder");
-                Toast.makeText(this, "Wallpaper folder access cleared", Toast.LENGTH_SHORT).show();
-            });
-        }
         section("Start with the TV");
         row("Home button opens Nadakkal Launcher", () -> PowerService.HomeButton.isDefaultHome(this) ? "Not needed"
                 : !PowerService.HomeButton.enabled(this) ? "Off"
@@ -688,12 +702,6 @@ public class SettingsActivity extends Activity {
                 d.dismiss();
                 refreshAll();
             }).show();
-        });
-        row("Liquid Glass focus frame", () -> getSharedPreferences("effects", MODE_PRIVATE)
-                .getBoolean("focus_glass", true) ? "On" : "Off", () -> {
-            boolean on = !getSharedPreferences("effects", MODE_PRIVATE).getBoolean("focus_glass", true);
-            getSharedPreferences("effects", MODE_PRIVATE).edit().putBoolean("focus_glass", on).apply();
-            showAndFocus(HOME, "Liquid Glass focus frame");
         });
         row("Navigation sounds", () -> Clicks.enabled(this) ? "On" : "Off",
                 () -> Clicks.setEnabled(this, !Clicks.enabled(this)));
