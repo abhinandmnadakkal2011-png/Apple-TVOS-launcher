@@ -1,11 +1,21 @@
-# Abhi Studio Launcher
+# Nadakkal Launcher
 
-A customised tvOS 26–style home screen for Android TV, maintained by **Abhi Studio** (Abhinand.M, GitHub: `abhinandnadakkal2011`). This project is a modified fork of **Hume Launcher** by Petrobot. It replaces the stock launcher with one
+A customised tvOS 26–style home screen for Android TV, maintained by **Nadakkal Launcher** (Abhinand.M, GitHub: `abhinandnadakkal2011`). This project is a modified fork of **Hume Launcher** by Petrobot. It replaces the stock launcher with one
 modelled on Apple TV — glass dock, full-screen carousel, Control Center, profiles — and is built to
 stay smooth on low-end TV boxes like the Xiaomi Mi Box. Plain Java, no Gradle, no third-party
 runtime libraries; the APK is about 1 MB.
 
 ![Home screen](docs/images/home-dock-glass.jpg)
+
+## Now Playing Island
+
+When media is actively playing and notification access is enabled, a compact pill appears at the top centre of the Home screen. Focus it with the TV remote to expand an Apple-inspired player with album artwork, track details, a seek bar, previous, play/pause and next controls. The pill hides when playback is not active.
+
+Customize it in **Settings → Now Playing**:
+- Enable or disable the island.
+- Show or hide album artwork.
+- Choose Classic black or Frosted glass styling.
+- Grant notification access so Android can expose active media sessions.
 
 ## Features
 

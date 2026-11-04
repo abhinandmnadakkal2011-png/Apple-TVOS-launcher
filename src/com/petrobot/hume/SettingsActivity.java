@@ -51,7 +51,7 @@ public class SettingsActivity extends Activity {
     // tvOS-style pages: the main list opens a page per section; Back returns to the main list.
     static final String ROOT = "root", PROFILES = "Profiles", SHELF = "Top Shelf", PRESENT = "Presentation",
             INPUTS = "Inputs", WEATHER = "Weather", WATCHING = "Continue Watching", HOME = "Home",
-            PERMS = "Permissions", ABOUT = "About";
+            PERMS = "Permissions", ABOUT = "About", NOW_PLAYING = "Now Playing", MY_WALLPAPERS = "My Wallpapers";
 
     FrameLayout leftPane;
     ScrollView scroller;
@@ -102,6 +102,8 @@ public class SettingsActivity extends Activity {
             case WEATHER: pageWeather(); break;
             case WATCHING: pageShelf(); break;  // older deep links: Continue Watching now lives in Top Shelf
             case HOME: pageHome(); break;
+            case MY_WALLPAPERS: pageMyWallpapers(); break;
+            case NOW_PLAYING: pageNowPlaying(); break;
             case PERMS: pagePermissions(); break;
             case ABOUT: pageAbout(); break;
             default: pageRoot(); break;
@@ -145,7 +147,7 @@ public class SettingsActivity extends Activity {
         else refreshAll();
     }
 
-    /** Left side: the page icon, its title, and the Abhi Studio brand line. */
+    /** Left side: the page icon, its title, and the Nadakkal Launcher brand line. */
     void buildLeft(String p) {
         leftPane.removeAllViews();
         LinearLayout left = new LinearLayout(this);
@@ -153,14 +155,14 @@ public class SettingsActivity extends Activity {
         left.setGravity(Gravity.CENTER_HORIZONTAL);
         android.view.View icon;
         if (p.equals(ROOT)) {
-            // Studio mark on a white 5:3 tile, the same shape and radius as the Home cards.
+            // Launcher mark on a white 5:3 tile, the same shape and radius as the Home cards.
             FrameLayout tile = new FrameLayout(this);
             GradientDrawable plate = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                     new int[]{0xFFFFFFFF, 0xFFE9EAEE});
             plate.setCornerRadius(Ui.px(this, 12));
             tile.setBackground(plate);
             ImageView mark = new ImageView(this);
-            mark.setImageResource(R.drawable.petrobot_mark);
+            mark.setImageResource(R.drawable.ic_launcher);
             mark.setScaleType(ImageView.ScaleType.FIT_CENTER);
             tile.addView(mark, new FrameLayout.LayoutParams(Ui.px(this, 58), Ui.px(this, 58), Gravity.CENTER));
             icon = tile;
@@ -189,7 +191,7 @@ public class SettingsActivity extends Activity {
 
         if (p.equals(ROOT)) {
             TextView by = new TextView(this);
-            by.setText("Abhi Studio by Abhinand.M");
+            by.setText("Nadakkal Launcher by Abhinand");
             by.setTextColor(0x8CFFFFFF);
             by.setTypeface(Ui.font(this, "regular"));
             Ui.textSize(by, 13);
@@ -214,6 +216,8 @@ public class SettingsActivity extends Activity {
             case WEATHER: grad = new int[]{0xFF5AC8FA, 0xFF2D6BD8}; glyph = null; break;
             case WATCHING: grad = new int[]{0xFFFF6482, 0xFFD6305A}; glyph = "present"; break;
             case HOME: grad = new int[]{0xFF30D158, 0xFF1E9E48}; glyph = "house"; break;
+            case NOW_PLAYING: grad = new int[]{0xFFFF375F, 0xFF9B1745}; glyph = "music"; break;
+            case MY_WALLPAPERS: grad = new int[]{0xFF64D2FF, 0xFF2356A8}; glyph = "image"; break;
             case PERMS: grad = new int[]{0xFF8E8E93, 0xFF48484A}; glyph = "shield"; break;
             default: grad = new int[]{0xFF8E8E93, 0xFF3A3A3C}; glyph = "gear"; break;
         }
@@ -251,6 +255,10 @@ public class SettingsActivity extends Activity {
             int i = java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k);
             return MainActivity.WALL_NAMES[Math.max(0, i)];
         });
+        nav(MY_WALLPAPERS, () -> CustomWallpapers.images(this).size()
+                + (CustomWallpapers.images(this).size() == 1 ? " saved" : " saved"));
+        nav(NOW_PLAYING, () -> !NowPlayingIsland.enabled(this) ? "Off"
+                : MediaWatchService.granted(this) ? "Ready" : "Allow notification access");
         nav(PERMS, () -> {
             int missing = (Perms.hasListener(this) || !Perms.listenerSupported(this) ? 0 : 1) + (Perms.hasLocation(this) ? 0 : 1)
                     + (Perms.hasTvListings(this) || !WatchNext.supported() ? 0 : 1)
@@ -533,8 +541,118 @@ public class SettingsActivity extends Activity {
         });
     }
 
+    static final int REQUEST_WALLPAPERS_FOLDER = 7101;
+
+    void chooseWallpaperFolder() {
+        // Many Android TV builds omit ACTION_OPEN_DOCUMENT_TREE. Select images directly instead.
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        pick.addCategory(Intent.CATEGORY_OPENABLE);
+        pick.setType("image/*");
+        pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        pick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try {
+            startActivityForResult(pick, REQUEST_WALLPAPERS_FOLDER);
+        } catch (Exception e) {
+            Intent fallback = new Intent(Intent.ACTION_GET_CONTENT);
+            fallback.addCategory(Intent.CATEGORY_OPENABLE);
+            fallback.setType("image/*");
+            fallback.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            try {
+                startActivityForResult(Intent.createChooser(fallback, "Choose wallpaper images"),
+                        REQUEST_WALLPAPERS_FOLDER);
+            } catch (Exception unavailable) {
+                Toast.makeText(this, "No image picker is available on this TV. Install or enable a file manager/gallery app.",
+                        Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    void chooseWallpaperRotation() {
+        String[] names = {"Timed rotation", "On every TV startup"};
+        int selected = "boot".equals(CustomWallpapers.mode(this)) ? 1 : 0;
+        dialog("Wallpaper rotation").setSingleChoiceItems(names, selected, (d, which) -> {
+            CustomWallpapers.setMode(this, which == 1 ? "boot" : "timed");
+            d.dismiss();
+            showAndFocus(HOME, "Rotation mode");
+        }).show();
+    }
+
+    void chooseWallpaperInterval() {
+        int[] seconds = {15, 30, 60, 300};
+        String[] names = {"15 seconds", "30 seconds  (default)", "1 minute", "5 minutes"};
+        int selected = 1;
+        for (int i = 0; i < seconds.length; i++) {
+            if (seconds[i] == CustomWallpapers.intervalSeconds(this)) selected = i;
+        }
+        dialog("Change wallpaper every").setSingleChoiceItems(names, selected, (d, which) -> {
+            CustomWallpapers.setIntervalSeconds(this, seconds[which]);
+            d.dismiss();
+            showAndFocus(HOME, "Change interval");
+        }).show();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_WALLPAPERS_FOLDER || resultCode != RESULT_OK || data == null) return;
+        java.util.List<android.net.Uri> selected = new java.util.ArrayList<>();
+        if (data.getClipData() != null) {
+            android.content.ClipData clip = data.getClipData();
+            for (int i = 0; i < clip.getItemCount(); i++) {
+                android.net.Uri uri = clip.getItemAt(i).getUri();
+                if (uri != null) selected.add(uri);
+            }
+        } else if (data.getData() != null) {
+            selected.add(data.getData());
+        }
+        if (CustomWallpapers.saveImages(this, selected, data.getFlags())) {
+            CustomWallpapers.setEnabled(this, true);
+            int count = CustomWallpapers.images(this).size();
+            Toast.makeText(this, count + (count == 1 ? " wallpaper selected" : " wallpapers selected"),
+                    Toast.LENGTH_LONG).show();
+        } else {
+            Toast.makeText(this, "No wallpaper images were selected", Toast.LENGTH_SHORT).show();
+        }
+        show(HOME);
+    }
+
+    /** Dedicated wallpaper library page; replaces the older inline Home-page controls. */
+    void pageMyWallpapers() {
+        int count = CustomWallpapers.images(this).size();
+        section("Your Wallpaper Library");
+        row("Add wallpapers", () -> "Choose images from this TV", this::chooseWallpaperFolder);
+        row("Use personal wallpapers", () -> CustomWallpapers.enabled(this) ? "On" : "Off", () -> {
+            CustomWallpapers.setEnabled(this, !CustomWallpapers.enabled(this));
+            showAndFocus(MY_WALLPAPERS, "Use personal wallpapers");
+        });
+        row("Saved images", () -> count + (count == 1 ? " wallpaper" : " wallpapers"), () -> {
+            Toast.makeText(this, count == 0 ? "No wallpapers added yet" : count + " wallpapers saved in Nadakkal Launcher",
+                    Toast.LENGTH_SHORT).show();
+        });
+        row("Rotation", () -> "boot".equals(CustomWallpapers.mode(this))
+                ? "Shuffle on TV startup" : "Automatic slideshow", this::chooseWallpaperRotation);
+        if ("timed".equals(CustomWallpapers.mode(this))) {
+            row("Slideshow interval", () -> CustomWallpapers.intervalSeconds(this) + " seconds",
+                    this::chooseWallpaperInterval);
+        }
+        if (count > 0 || CustomWallpapers.hasFolder(this)) {
+            row("Remove all my wallpapers", () -> "Clear saved images", () -> {
+                new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                        .setTitle("Remove all wallpapers?")
+                        .setMessage("This removes the images saved inside Nadakkal Launcher. Your original photos on the TV will not be deleted.")
+                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton("Remove", (d, w) -> {
+                            CustomWallpapers.clearFolder(this);
+                            CustomWallpapers.setEnabled(this, false);
+                            showAndFocus(MY_WALLPAPERS, "Add wallpapers");
+                            Toast.makeText(this, "Personal wallpapers removed", Toast.LENGTH_SHORT).show();
+                        }).show();
+            });
+        }
+    }
+
     void pageHome() {
-        row("Home screen", () -> Perms.isDefaultHome(this) ? "Hume Launcher" : "Make Hume the home screen\u2026",
+        row("Home screen", () -> Perms.isDefaultHome(this) ? "Nadakkal Launcher" : "Make Nadakkal the home screen\u2026",
                 () -> Perms.requestDefaultHome(this));
         row("Background", () -> {
             String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
@@ -549,9 +667,10 @@ public class SettingsActivity extends Activity {
                 d.dismiss();
             }).show();
         });
-        row("Home button opens Hume", () -> PowerService.HomeButton.isDefaultHome(this) ? "Not needed"
+        section("Start with the TV");
+        row("Home button opens Nadakkal Launcher", () -> PowerService.HomeButton.isDefaultHome(this) ? "Not needed"
                 : !PowerService.HomeButton.enabled(this) ? "Off"
-                : Perms.hasAccessibility(this) ? "On" : "Needs Hume\u2019s switch\u2026", this::toggleHomeButton);
+                : Perms.hasAccessibility(this) ? "On" : "Needs Nadakkal Launcher\u2019s switch\u2026", this::toggleHomeButton);
         section("Start with the TV");
         row("Open", () -> Startup.label(this), this::chooseStartup);
         if (!Startup.target(this).isEmpty()) {
@@ -562,14 +681,14 @@ public class SettingsActivity extends Activity {
                     d.dismiss();
                     refreshAll();
                     if (w == 1 && !Perms.hasAccessibility(this)) {
-                        Perms.requestAccessibility(this, "Android lets Hume open an app when the TV wakes only "
-                                + "with Hume\u2019s accessibility switch on.");
+                        Perms.requestAccessibility(this, "Android lets Nadakkal Launcher open an app when the TV wakes only "
+                                + "with Nadakkal Launcher\u2019s accessibility switch on.");
                     }
                 }).show();
             });
             if (Startup.onWake(this) && !Perms.hasAccessibility(this)) {
-                row("Waking into it", () -> "Needs Hume\u2019s switch\u2026", () -> Perms.requestAccessibility(this,
-                        "Android lets Hume open an app when the TV wakes only with Hume\u2019s accessibility switch on."));
+                row("Waking into it", () -> "Needs Nadakkal Launcher\u2019s switch\u2026", () -> Perms.requestAccessibility(this,
+                        "Android lets Nadakkal Launcher open an app when the TV wakes only with Nadakkal Launcher\u2019s accessibility switch on."));
             }
             if (com.petrobot.hume.present.Presenter.enabled(this) && com.petrobot.hume.present.Presenter.startOnBoot(this)) {
                 row("At boot", () -> "Presentation starts instead", () -> show(PRESENT));
@@ -602,8 +721,8 @@ public class SettingsActivity extends Activity {
             }).show();
         });
         section("Screensaver");
-        row("Screensaver on Home", () -> screensaverAllowed() ? "System screensaver" : "Hume carousel", () -> {
-            String[] names = {"System screensaver  (" + dreamLabel() + ")", "Hume full-screen carousel"};
+        row("Screensaver on Home", () -> screensaverAllowed() ? "System screensaver" : "Nadakkal Launcher carousel", () -> {
+            String[] names = {"System screensaver  (" + dreamLabel() + ")", "Nadakkal Launcher full-screen carousel"};
             dialog("Screensaver on Home").setSingleChoiceItems(names, screensaverAllowed() ? 0 : 1, (d, w) -> {
                 getSharedPreferences("screensaver", MODE_PRIVATE).edit().putBoolean("allow", w == 0).apply();
                 refreshAll();
@@ -638,12 +757,12 @@ public class SettingsActivity extends Activity {
     /** Home button override: on/off, asking for the accessibility switch when it's needed. */
     void toggleHomeButton() {
         if (PowerService.HomeButton.isDefaultHome(this)) {
-            Toast.makeText(this, "Hume is already the home app, so the Home button opens it.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Nadakkal Launcher is already the home app, so the Home button opens it.", Toast.LENGTH_LONG).show();
             return;
         }
         boolean on = PowerService.HomeButton.enabled(this);
         if (on && !Perms.hasAccessibility(this)) {
-            Perms.requestAccessibility(this, "This TV keeps its own home screen. With Hume\u2019s switch on, Hume opens "
+            Perms.requestAccessibility(this, "This TV keeps its own home screen. With Nadakkal Launcher\u2019s switch on, Nadakkal Launcher opens "
                     + "whenever that home screen appears, so the Home button brings you here.");
             return;
         }
@@ -675,7 +794,7 @@ public class SettingsActivity extends Activity {
 
     void pagePermissions() {
         row("Home button & Start with the TV", () -> Perms.hasAccessibility(this) ? "Allowed" : "Allow\u2026",
-                () -> Perms.requestAccessibility(this, "Hume\u2019s switch lets it open itself when the TV\u2019s own "
+                () -> Perms.requestAccessibility(this, "Nadakkal Launcher\u2019s switch lets it open itself when the TV\u2019s own "
                         + "home screen appears, and open your chosen app when the TV wakes."));
         row("Continue Watching (apps\u2019 Watch Next)", () -> Perms.hasTvListings(this) ? "Allowed"
                 : WatchNext.supported() ? "Allow\u2026" : "Not on this TV", () -> Perms.requestTvListings(this));
@@ -684,14 +803,43 @@ public class SettingsActivity extends Activity {
                 () -> Perms.requestListener(this));
         row("Power Off & Sleep Timer", () -> Perms.hasAdmin(this) ? "Allowed"
                 : Perms.adminSupported(this) ? "Allow\u2026" : "Not on this TV", () -> Perms.requestAdmin(this));
-        row("Hume as the home screen", () -> Perms.isDefaultHome(this) ? "Yes" : "Set\u2026",
+        row("Nadakkal Launcher as the home screen", () -> Perms.isDefaultHome(this) ? "Yes" : "Set\u2026",
                 () -> Perms.requestDefaultHome(this));
         row("Wi-Fi name in Control Center", () -> Perms.hasLocation(this) ? "Allowed" : "Allow\u2026",
                 () -> Perms.requestLocation(this));
     }
 
+    void pageNowPlaying() {
+        section("Now Playing Island");
+        row("Show Now Playing", () -> NowPlayingIsland.enabled(this) ? "On" : "Off", () -> {
+            NowPlayingIsland.setEnabled(this, !NowPlayingIsland.enabled(this));
+            showAndFocus(NOW_PLAYING, "Show Now Playing");
+        });
+        row("Show album artwork", () -> NowPlayingIsland.showArtwork(this) ? "On" : "Off", () -> {
+            NowPlayingIsland.setShowArtwork(this, !NowPlayingIsland.showArtwork(this));
+            showAndFocus(NOW_PLAYING, "Show album artwork");
+        });
+        row("Player appearance", () -> "glass".equals(NowPlayingIsland.style(this)) ? "Frosted glass" : "Classic black", () -> {
+            String[] choices = {"Classic black", "Frosted glass"};
+            int selected = "glass".equals(NowPlayingIsland.style(this)) ? 1 : 0;
+            dialog("Player appearance").setSingleChoiceItems(choices, selected, (d, which) -> {
+                NowPlayingIsland.setStyle(this, which == 1 ? "glass" : "black");
+                d.dismiss();
+                showAndFocus(NOW_PLAYING, "Player appearance");
+            }).show();
+        });
+        section("Playback access");
+        row("Notification access", () -> MediaWatchService.granted(this) ? "Allowed" : "Allow access",
+                () -> Perms.requestListener(this));
+        row("How it works", () -> "Appears only while music plays", () -> {
+            Clicks.dialog(this).setTitle("Now Playing")
+                    .setMessage("The island reads active media sessions from music and video apps. Focus it with your TV remote to expand the player. Use the progress bar to seek, or the previous, play/pause and next buttons to control playback.")
+                    .setPositiveButton("OK", null).show();
+        });
+    }
+
     void pageAbout() {
-        row("Abhi Studio", () -> "Version " + version(), () -> { });
+        row("Nadakkal Launcher", () -> "Version " + version(), () -> { });
         row("Made by", () -> "Abhinand.M", () -> { });
         row("GitHub", () -> "abhinandnadakkal2011", () -> { });
         row("Weather", () -> Weather.sourceName(Weather.source(this)), () -> { });

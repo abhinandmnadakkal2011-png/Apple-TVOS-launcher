@@ -418,13 +418,13 @@ public class SetupActivity extends Activity {
             handler.postDelayed(cycle[0], 2200);
         };
         handler.postDelayed(cycle[0], 2400);
-        TextView s = subtitle("Let’s set up Hume Launcher. It takes about a minute.");
+        TextView s = subtitle("Let’s set up Nadakkal Launcher Launcher. It takes about a minute.");
         Ui.textSize(s, 17);
         buttons("Get Started", this::next);
         View mid = new View(this);
         page.addView(mid, new LinearLayout.LayoutParams(1, 0, 1f));
         TextView by = new TextView(this);
-        by.setText("by Petrobot");
+        by.setText("by Abhinand");
         by.setTextColor(0x80FFFFFF);
         by.setTypeface(Ui.font(this, "regular"));
         Ui.textSize(by, 13);
@@ -667,7 +667,7 @@ public class SetupActivity extends Activity {
     }
 
     /**
-     * Last page: what Hume still needs, each with its state on the right. Nothing is asked for
+     * Last page: what Nadakkal Launcher still needs, each with its state on the right. Nothing is asked for
      * until its row is pressed; everything here can be skipped and allowed later in Settings.
      */
     void homeAndPermissions() {
@@ -675,8 +675,8 @@ public class SetupActivity extends Activity {
         subtitle("Press a row to allow it. Only the first one matters for most people; the rest can wait.");
         LinearLayout l = list();
         boolean home = Perms.isDefaultHome(this) || PowerService.HomeButton.active(this);
-        Row h = row(l, "Make Hume the Home Screen", home ? "The Home button opens Hume"
-                : "So the Home button opens Hume", ACTION, false, () -> Perms.requestDefaultHome(this));
+        Row h = row(l, "Make Nadakkal Launcher the Home Screen", home ? "The Home button opens Nadakkal Launcher"
+                : "So the Home button opens Nadakkal Launcher", ACTION, false, () -> Perms.requestDefaultHome(this));
         h.status(home ? "✓ Done" : "Set Up  ›", home);
         boolean cw = Profiles.homePrefs(this).getBoolean("cw_enabled", true), apps = Profiles.homePrefs(this).getBoolean("app_rows", true);
         if (WatchNext.supported() && (cw || apps)) {
@@ -687,7 +687,7 @@ public class SetupActivity extends Activity {
         }
         if (Perms.adminSupported(this)) {
             boolean ok = Perms.hasAdmin(this);
-            Row r = row(l, "Power Off & Sleep Timer", "Let Hume turn the screen off", ACTION, false, () -> Perms.requestAdmin(this));
+            Row r = row(l, "Power Off & Sleep Timer", "Let Nadakkal Launcher turn the screen off", ACTION, false, () -> Perms.requestAdmin(this));
             r.status(ok ? "✓ Allowed" : "Allow  ›", ok);
         }
         boolean wifi = Perms.hasLocation(this);

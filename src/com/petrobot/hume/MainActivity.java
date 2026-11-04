@@ -131,6 +131,21 @@ public class MainActivity extends Activity {
 
     FrameLayout root;
     ImageView wallView;
+    ImageView customWallpaperView;
+    NowPlayingIsland nowPlayingIsland;
+    boolean customWallpaperShowing;
+    List<String> customWallpaperUris = new ArrayList<>();
+    int customWallpaperIndex;
+    final Runnable customWallpaperAdvance = new Runnable() {
+        @Override public void run() {
+            if (!resumed || !customWallpaperShowing || !"timed".equals(CustomWallpapers.mode(MainActivity.this))
+                    || customWallpaperUris.size() < 2) return;
+            customWallpaperIndex = (customWallpaperIndex + 1) % customWallpaperUris.size();
+            CustomWallpapers.setIndex(MainActivity.this, customWallpaperIndex);
+            showCustomWallpaper(customWallpaperIndex);
+            handler.postDelayed(this, CustomWallpapers.intervalSeconds(MainActivity.this) * 1000L);
+        }
+    };
     /** Top shelf carousel: two crossfading backdrops + info panel. */
     ImageView heroBack, heroFront;
     View heroScrim, shade;
@@ -354,14 +369,16 @@ public class MainActivity extends Activity {
         }
         if (returningFromSettings && !folderMode && launchOverlay == null && moveIndex < 0) reload(currentKey());
         returningFromSettings = false;
-        loadHero();
+        refreshCustomWallpaper();
+        if (!customWallpaperShowing) loadHero();
+        if (nowPlayingIsland != null) nowPlayingIsland.refreshPermissionAndSettings();
         if (launchOverlay != null) finishLaunchReturn();
         // Setup not finished (e.g. Home was pressed during it): pick it up again.
         if (!SetupActivity.done(this)) {
             startActivity(new Intent(this, SetupActivity.class));
             return;
         }
-        // Screensaver: Hume never holds the screen on unless the user turned the screensaver off here.
+        // Screensaver: Nadakkal Launcher never holds the screen on unless the user turned the screensaver off here.
         if (getSharedPreferences("screensaver", MODE_PRIVATE).getBoolean("allow", true)) {
             getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         } else {
@@ -371,13 +388,13 @@ public class MainActivity extends Activity {
         applyTabs();
         resetIdle();
         // Opened from the app list while another launcher is the home screen: offer once to take over.
-        // Not asked while Hume's switch already sends the Home button here (the stock launcher stays default).
+        // Not asked while Nadakkal Launcher's switch already sends the Home button here (the stock launcher stays default).
         if (SetupActivity.done(this) && !Perms.isDefaultHome(this) && !PowerService.HomeButton.active(this)
                 && !prefs.getBoolean("asked_default_home", false)) {
             prefs.edit().putBoolean("asked_default_home", true).apply();
             Clicks.dialog(this)
-                    .setTitle("Make Hume your home screen?")
-                    .setMessage("The Home button on the remote will open Hume Launcher.")
+                    .setTitle("Make Nadakkal Launcher your home screen?")
+                    .setMessage("The Home button on the remote will open Nadakkal Launcher Launcher.")
                     .setPositiveButton("Make Home Screen", (d, w) -> Perms.requestDefaultHome(this))
                     .setNegativeButton("Not Now", null).show();
         }
@@ -390,6 +407,7 @@ public class MainActivity extends Activity {
         super.onPause();
         resumed = false;
         handler.removeCallbacks(heroAdvance);
+        handler.removeCallbacks(customWallpaperAdvance);
         handler.removeCallbacks(weatherTick);
         handler.removeCallbacks(idleRunnable);
         if (idle) exitIdle();
@@ -429,6 +447,13 @@ public class MainActivity extends Activity {
         root.addView(heroBack, match());
         root.addView(heroFront, match());
 
+        // User-selected wallpapers sit behind the app grid and status controls, replacing
+        // the movie/news artwork without disturbing the rest of the Home layout.
+        customWallpaperView = new ImageView(this);
+        customWallpaperView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        customWallpaperView.setVisibility(View.GONE);
+        root.addView(customWallpaperView, match());
+
         shade = new View(this);
         shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{0x14000000, 0x40000000, 0xB3000000}));
@@ -462,6 +487,7 @@ public class MainActivity extends Activity {
         scroll.addView(content, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, match());
+
 
         // Top shelf: header shown only inside the More Apps folder.
         FrameLayout shelf = new FrameLayout(this);
@@ -659,6 +685,21 @@ public class MainActivity extends Activity {
         root.addView(weatherCard, wlp);
         updateWeather();
 
+        // Compact Dynamic Island-style media pill, centered along the top edge.
+        nowPlayingIsland = new NowPlayingIsland(this);
+        nowPlayingIsland.setId(View.generateViewId());
+        weatherCard.setId(View.generateViewId());
+        if (searchButton != null) searchButton.setId(View.generateViewId());
+        FrameLayout.LayoutParams np = new FrameLayout.LayoutParams(dp(440), dp(56), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        np.topMargin = dp(18);
+        root.addView(nowPlayingIsland, np);
+        nowPlayingIsland.setNextFocusLeftId(weatherCard.getId());
+        weatherCard.setNextFocusRightId(nowPlayingIsland.getId());
+        if (searchButton != null) {
+            nowPlayingIsland.setNextFocusRightId(searchButton.getId());
+            searchButton.setNextFocusLeftId(nowPlayingIsland.getId());
+        }
+
         setContentView(root);
         Clicks.quiet(root);  // Android's own click sounds off: the Sounds switch decides
     }
@@ -817,6 +858,11 @@ public class MainActivity extends Activity {
         });
         tiles.add(tile);
         return cell;
+    }
+
+    /** No shared glass frame: focus is indicated by the app tile's own lift animation. */
+    void moveFocusGlass(View tile) {
+        // Intentionally empty; the liquid-glass rectangle has been removed.
     }
 
     /** tvOS-style ambient colour field: soft glows of indigo, teal, magenta and amber on navy. */
@@ -1682,7 +1728,11 @@ public class MainActivity extends Activity {
 
     /** Up from the shelf/dock: the tab bar, or the status row when the tab bar is hidden. */
     void focusTop() {
-        (switcher != null && switcher.getVisibility() == View.VISIBLE ? switcher : ccButton).requestFocus();
+        if (nowPlayingIsland != null && nowPlayingIsland.getVisibility() == View.VISIBLE) {
+            nowPlayingIsland.requestFocus();
+        } else {
+            (switcher != null && switcher.getVisibility() == View.VISIBLE ? switcher : ccButton).requestFocus();
+        }
     }
 
     boolean continueMode() {
@@ -1697,6 +1747,7 @@ public class MainActivity extends Activity {
      * titles mixed in (if it's on) — one after every two items; or Continue Watching alone.
      */
     void loadHero() {
+        if (customWallpaperShowing) return;
         updateEmpty();
         boolean shelf = Suggestions.enabled(this) && Suggestions.ready(this);
         boolean cw = cwEnabled();
@@ -1807,6 +1858,16 @@ public class MainActivity extends Activity {
 
     /** Carousel vs launcher background: crossfade between them. */
     void setHeroShown(boolean show) {
+        if (customWallpaperShowing) {
+            heroShown = false;
+            handler.removeCallbacks(heroAdvance);
+            customWallpaperView.setVisibility(View.VISIBLE);
+            heroBack.setAlpha(0f);
+            heroFront.setAlpha(0f);
+            heroInfo.setAlpha(0f);
+            heroDots.setAlpha(0f);
+            return;
+        }
         show = show && !heroItems.isEmpty() && !folderMode;
         if (show == heroShown) return;
         heroShown = show;
@@ -1825,6 +1886,66 @@ public class MainActivity extends Activity {
         heroBack.animate().alpha(0f).setDuration(Motion.d(450)).start();
         handler.removeCallbacks(heroAdvance);
         if (show) scheduleAdvance();
+    }
+
+    /** Loads the selected folder and gives custom images priority over the news/movie carousel. */
+    void refreshCustomWallpaper() {
+        handler.removeCallbacks(customWallpaperAdvance);
+        customWallpaperUris = CustomWallpapers.images(this);
+        customWallpaperShowing = CustomWallpapers.enabled(this) && !customWallpaperUris.isEmpty();
+        if (!customWallpaperShowing) {
+            customWallpaperView.setVisibility(View.GONE);
+            wallView.setVisibility(View.VISIBLE);
+            shelfView.setFocusable(!heroItems.isEmpty());
+            View focused = getCurrentFocus();
+            int tile = tiles.indexOf(focused);
+            boolean showHero = focused == shelfView || (hasDock() && tile >= 0 && tile < COLS);
+            setHeroShown(showHero);
+            if (showHero && !heroItems.isEmpty()) showHero(heroIndex, 0);
+            return;
+        }
+        customWallpaperIndex = CustomWallpapers.index(this) % customWallpaperUris.size();
+        CustomWallpapers.setIndex(this, customWallpaperIndex);
+        heroShown = false;
+        handler.removeCallbacks(heroAdvance);
+        heroBack.setAlpha(0f);
+        heroFront.setAlpha(0f);
+        heroInfo.setAlpha(0f);
+        heroDots.setAlpha(0f);
+        heroScrim.setVisibility(View.GONE);
+        wallView.setVisibility(View.INVISIBLE);
+        shelfView.setFocusable(false);
+        customWallpaperView.setVisibility(View.VISIBLE);
+        customWallpaperView.setAlpha(1f);
+        showCustomWallpaper(customWallpaperIndex);
+        if (customWallpaperUris.size() > 1 && "timed".equals(CustomWallpapers.mode(this))) {
+            handler.postDelayed(customWallpaperAdvance,
+                    CustomWallpapers.intervalSeconds(this) * 1000L);
+        }
+    }
+
+    /** Decode away from the UI thread, then fade the next image into the same home-screen slot. */
+    void showCustomWallpaper(int index) {
+        if (index < 0 || index >= customWallpaperUris.size()) return;
+        final String uri = customWallpaperUris.get(index);
+        heroIo.execute(() -> {
+            Bitmap bitmap = CustomWallpapers.decode(MainActivity.this, uri, screenW, screenH);
+            handler.post(() -> {
+                if (!customWallpaperShowing || index != customWallpaperIndex) return;
+                if (bitmap == null) {
+                    customWallpaperShowing = false;
+                    customWallpaperView.setVisibility(View.GONE);
+                    wallView.setVisibility(View.VISIBLE);
+                    shelfView.setFocusable(!heroItems.isEmpty());
+                    loadHero();
+                    return;
+                }
+                customWallpaperView.animate().cancel();
+                customWallpaperView.setAlpha(0f);
+                customWallpaperView.setImageBitmap(bitmap);
+                customWallpaperView.animate().alpha(1f).setDuration(Motion.d(650)).start();
+            });
+        });
     }
 
     void scheduleAdvance() {
@@ -2792,6 +2913,11 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent ev) {
+        if (nowPlayingIsland != null && nowPlayingIsland.isExpanded()
+                && ev.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+            if (ev.getAction() == KeyEvent.ACTION_UP) nowPlayingIsland.collapseForBack();
+            return true;
+        }
         if (launchOverlay != null) return true;
         // Idle full-screen carousel: the first press only brings the Home Screen back.
         if (idle) {
@@ -3397,7 +3523,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Clean: close the apps you've opened since the last clean. With Hume's accessibility switch on,
+     * Clean: close the apps you've opened since the last clean. With Nadakkal Launcher's accessibility switch on,
      * it presses Force stop on each app's info page (what you'd do by hand); otherwise Android is
      * asked to drop their background processes. The memory freed is measured.
      */
@@ -3746,7 +3872,7 @@ public class MainActivity extends Activity {
     /** Seconds without input before the dock slides away (Settings -> Home); 0 = never. */
     int idleSeconds() {
         int sec = Profiles.homePrefs(this).getInt("idle_sec", 20);
-        // Hume carousel chosen as the screensaver: it always takes over when idle.
+        // Nadakkal Launcher carousel chosen as the screensaver: it always takes over when idle.
         if (sec == 0 && !getSharedPreferences("screensaver", MODE_PRIVATE).getBoolean("allow", true)) sec = 20;
         return sec;
     }
@@ -3764,7 +3890,7 @@ public class MainActivity extends Activity {
      * fade, and the carousel keeps playing full screen with its title and summary at the bottom.
      */
     void enterIdle() {
-        if (idle || !resumed || !heroShown || heroItems.isEmpty() || continueMode() || folderMode
+        if (idle || !resumed || customWallpaperShowing || !heroShown || heroItems.isEmpty() || continueMode() || folderMode
                 || launchOverlay != null || pickerLayer != null || menuLayer != null || moveIndex >= 0) {
             resetIdle();
             return;
