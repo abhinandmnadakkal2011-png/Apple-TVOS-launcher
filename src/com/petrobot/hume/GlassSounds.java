@@ -40,25 +40,25 @@ final class GlassSounds {
                 .setBufferSizeInBytes(pcm.length * 2)
                 .build();
         track.write(pcm, 0, pcm.length, AudioTrack.WRITE_BLOCKING);
-        track.setVolume(0.58f);
+        track.setVolume(0.72f);
         return track;
     }
 
     /** A rounded, low-pitched 95–145 Hz movement pulse with a subtle crisp edge. */
     private static short[] navigationThump() {
-        int count = RATE * 92 / 1000;
+        int count = RATE * 112 / 1000;
         short[] pcm = new short[count];
         double phase = 0.0;
         for (int i = 0; i < count; i++) {
             float t = i / (float) RATE;
             float p = i / (float) count;
-            float freq = 145f - 48f * p;
+            float freq = 104f - 28f * p;
             phase += 2.0 * Math.PI * freq / RATE;
-            float env = (float) Math.pow(1f - p, 2.0);
+            float env = (float) Math.pow(1f - p, 1.85);
             float low = (float) Math.sin(phase);
             float body = (float) Math.sin(phase * 2.02);
-            float tick = (float) Math.sin(2.0 * Math.PI * 760f * t) * (float) Math.exp(-p * 32f);
-            float sample = (low * 0.72f + body * 0.18f) * env + tick * 0.10f;
+            float tick = (float) Math.sin(2.0 * Math.PI * 420f * t) * (float) Math.exp(-p * 28f);
+            float sample = (low * 0.76f + body * 0.18f) * env + tick * 0.06f;
             pcm[i] = (short) (sample * 7800f);
         }
         return pcm;
@@ -66,19 +66,19 @@ final class GlassSounds {
 
     /** Deeper, fuller 82–120 Hz selection thump with a gentle 500 Hz attack. */
     private static short[] selectionThump() {
-        int count = RATE * 145 / 1000;
+        int count = RATE * 165 / 1000;
         short[] pcm = new short[count];
         double phase = 0.0;
         for (int i = 0; i < count; i++) {
             float t = i / (float) RATE;
             float p = i / (float) count;
-            float freq = 122f - 40f * p;
+            float freq = 88f - 24f * p;
             phase += 2.0 * Math.PI * freq / RATE;
-            float env = (float) Math.pow(1f - p, 2.15);
+            float env = (float) Math.pow(1f - p, 1.9);
             float sub = (float) Math.sin(phase);
             float harmonic = (float) Math.sin(phase * 2.0);
-            float attack = (float) Math.sin(2.0 * Math.PI * 510f * t) * (float) Math.exp(-p * 24f);
-            float sample = (sub * 0.78f + harmonic * 0.14f) * env + attack * 0.08f;
+            float attack = (float) Math.sin(2.0 * Math.PI * 340f * t) * (float) Math.exp(-p * 22f);
+            float sample = (sub * 0.80f + harmonic * 0.16f) * env + attack * 0.04f;
             pcm[i] = (short) (sample * 9200f);
         }
         return pcm;
