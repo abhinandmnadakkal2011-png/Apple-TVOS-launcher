@@ -20,8 +20,8 @@ import java.util.Set;
  * standby, open an app or a TV input instead of staying on Home. For the whole TV, not per
  * profile. Fired once per boot (boot broadcast or Home starting just after boot, whichever comes
  * first) and on SCREEN_ON. Android lets an app open a screen from the background only in a few
- * cases; Hume's accessibility switch is one, so waking into an app is reliable only with it on
- * (at boot Hume is usually on screen anyway, as the home app). Presentation's own "Start on boot"
+ * cases; Nadakkal Launcher's accessibility switch is one, so waking into an app is reliable only with it on
+ * (at boot Nadakkal Launcher is usually on screen anyway, as the home app). Presentation's own "Start on boot"
  * takes precedence at boot.
  */
 final class Startup {
