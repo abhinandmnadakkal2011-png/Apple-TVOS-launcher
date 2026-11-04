@@ -373,6 +373,13 @@ final class NowPlayingIsland extends FrameLayout {
         long sec = ms / 1000;
         return String.format(java.util.Locale.US, "%d:%02d", sec / 60, sec % 60);
     }
+    boolean isExpanded() { return expanded; }
+
+    void collapseForBack() {
+        clearFocus();
+        setExpanded(false);
+    }
+
     private void setExpanded(boolean value) {
         if (controller == null || getVisibility() != VISIBLE) return;
         expanded = value;
