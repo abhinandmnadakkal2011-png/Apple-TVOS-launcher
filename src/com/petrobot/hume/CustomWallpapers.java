@@ -19,6 +19,7 @@ final class CustomWallpapers {
     static final int DEFAULT_INTERVAL_SECONDS = 30;
     private static final String PREFS = "custom_wallpapers";
     private static final String TREE = "tree_uri";
+    private static final String FILES = "image_uris";
     private static final String ENABLED = "enabled";
     private static final String MODE = "rotation_mode";
     private static final String INTERVAL = "rotation_interval";
@@ -69,11 +70,14 @@ final class CustomWallpapers {
 
     static String folderLabel(Context c) {
         String uri = prefs(c).getString(TREE, "");
-        return uri.isEmpty() ? "No folder selected" : "Folder selected";
+        int count = images(c).size();
+        return count == 0 ? (uri.isEmpty() ? "No images selected" : "Folder selected (empty)")
+                : count + (count == 1 ? " image selected" : " images selected");
     }
 
     static boolean hasFolder(Context c) {
-        return !prefs(c).getString(TREE, "").isEmpty();
+        return !prefs(c).getString(TREE, "").isEmpty()
+                || !prefs(c).getStringSet(FILES, java.util.Collections.<String>emptySet()).isEmpty();
     }
 
     /** Store a folder selected through ACTION_OPEN_DOCUMENT_TREE and keep access across reboots. */
@@ -91,6 +95,25 @@ final class CustomWallpapers {
         return true;
     }
 
+    /** Save individually selected image URIs from TVs that do not provide a folder picker. */
+    static boolean saveImages(Context c, List<Uri> uris, int resultFlags) {
+        if (uris == null || uris.isEmpty()) return false;
+        java.util.Set<String> saved = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        int takeFlags = resultFlags & (Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        for (Uri uri : uris) {
+            if (uri == null) continue;
+            try {
+                c.getContentResolver().takePersistableUriPermission(uri,
+                        takeFlags & Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } catch (Exception ignored) { }
+            saved.add(uri.toString());
+        }
+        if (saved.isEmpty()) return false;
+        prefs(c).edit().remove(TREE).putStringSet(FILES, saved).putInt(INDEX, 0).apply();
+        return true;
+    }
+
     static void clearFolder(Context c) {
         String saved = prefs(c).getString(TREE, "");
         if (!saved.isEmpty()) {
@@ -99,12 +122,20 @@ final class CustomWallpapers {
                         Uri.parse(saved), Intent.FLAG_GRANT_READ_URI_PERMISSION);
             } catch (Exception ignored) { }
         }
-        prefs(c).edit().remove(TREE).putInt(INDEX, 0).apply();
+        java.util.Set<String> files = prefs(c).getStringSet(FILES, java.util.Collections.<String>emptySet());
+        for (String file : files) {
+            try { c.getContentResolver().releasePersistableUriPermission(
+                    Uri.parse(file), Intent.FLAG_GRANT_READ_URI_PERMISSION); }
+            catch (Exception ignored) { }
+        }
+        prefs(c).edit().remove(TREE).remove(FILES).putInt(INDEX, 0).apply();
     }
 
     /** Lists direct image files in the selected folder in a stable alphabetical order. */
     static List<String> images(Context c) {
         List<String> out = new ArrayList<>();
+        java.util.Set<String> selected = prefs(c).getStringSet(FILES, java.util.Collections.<String>emptySet());
+        out.addAll(selected);
         String saved = prefs(c).getString(TREE, "");
         if (saved.isEmpty()) return out;
         Cursor cursor = null;
