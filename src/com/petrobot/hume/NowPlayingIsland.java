@@ -156,7 +156,12 @@ final class NowPlayingIsland extends FrameLayout {
         addView(panel, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP));
 
-        setOnFocusChangeListener((v, has) -> setExpanded(has));
+        setOnFocusChangeListener((v, has) -> {
+            if (has) setExpanded(true);
+            else postDelayed(() -> {
+                if (!hasFocus()) setExpanded(false);
+            }, 90);
+        });
         setOnClickListener(v -> setExpanded(!expanded));
         setOnKeyListener((v, key, event) -> {
             if (key == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP && expanded) {
@@ -221,6 +226,14 @@ final class NowPlayingIsland extends FrameLayout {
             setVisibility(GONE);
             return;
         }
+        connectSessions();
+    }
+
+    private void connectSessions() {
+        if (!enabled(activity) || !MediaWatchService.granted(activity)) {
+            setVisibility(GONE);
+            return;
+        }
         manager = (MediaSessionManager) activity.getSystemService(Context.MEDIA_SESSION_SERVICE);
         if (manager == null) return;
         sessionsListener = controllers -> chooseController(controllers);
@@ -247,7 +260,12 @@ final class NowPlayingIsland extends FrameLayout {
             setVisibility(GONE);
             return;
         }
-        if (manager == null && isAttachedToWindow()) onAttachedToWindow();
+        if (manager == null && isAttachedToWindow()) connectSessions();
+        if (manager != null && MediaWatchService.granted(activity)) {
+            try {
+                chooseController(manager.getActiveSessions(new android.content.ComponentName(activity, MediaWatchService.class)));
+            } catch (SecurityException ignored) { setVisibility(GONE); }
+        }
         refreshStyle();
     }
 
