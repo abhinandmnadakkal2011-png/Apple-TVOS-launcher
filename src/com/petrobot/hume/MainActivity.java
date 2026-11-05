@@ -851,6 +851,29 @@ public class MainActivity extends Activity {
     static final String[] WALL_NAMES = {"Aurora", "Midnight", "Sunset", "Ocean", "Graphite"};
 
     Bitmap makeWallpaper(String style) {
+        if (style != null && style.startsWith("photo:")) {
+            android.graphics.BitmapFactory.Options bounds = new android.graphics.BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            try (java.io.InputStream in = getContentResolver().openInputStream(Uri.parse(style.substring(6)))) {
+                if (in != null) android.graphics.BitmapFactory.decodeStream(in, null, bounds);
+            } catch (Exception ignored) { }
+            if (bounds.outWidth > 0 && bounds.outHeight > 0) {
+                int sample = 1;
+                while (bounds.outWidth / (sample * 2) >= 192 && bounds.outHeight / (sample * 2) >= 108) sample *= 2;
+                android.graphics.BitmapFactory.Options opts = new android.graphics.BitmapFactory.Options();
+                opts.inSampleSize = sample;
+                try (java.io.InputStream in = getContentResolver().openInputStream(Uri.parse(style.substring(6)))) {
+                    Bitmap source = in == null ? null : android.graphics.BitmapFactory.decodeStream(in, null, opts);
+                    if (source != null) {
+                        Bitmap photo = Bitmap.createScaledBitmap(source, 192, 108, true);
+                        if (photo != source) source.recycle();
+                        return bakeShade(photo);
+                    }
+                } catch (Exception ignored) { }
+            }
+            // A removed photo or inaccessible USB drive falls back cleanly to the original Aurora look.
+            return bakeShade(makeWallpaperBase("aurora"));
+        }
         return bakeShade(makeWallpaperBase(style));
     }
 
