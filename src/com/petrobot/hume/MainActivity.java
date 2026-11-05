@@ -865,8 +865,14 @@ public class MainActivity extends Activity {
                 try (java.io.InputStream in = getContentResolver().openInputStream(Uri.parse(style.substring(6)))) {
                     Bitmap source = in == null ? null : android.graphics.BitmapFactory.decodeStream(in, null, opts);
                     if (source != null) {
-                        Bitmap photo = Bitmap.createScaledBitmap(source, 192, 108, true);
-                        if (photo != source) source.recycle();
+                        int cropW = Math.min(source.getWidth(), source.getHeight() * 16 / 9);
+                        int cropH = cropW * 9 / 16;
+                        int left = (source.getWidth() - cropW) / 2;
+                        int top = (source.getHeight() - cropH) / 2;
+                        Bitmap crop = Bitmap.createBitmap(source, left, top, cropW, cropH);
+                        Bitmap photo = Bitmap.createScaledBitmap(crop, 192, 108, true);
+                        if (crop != source) crop.recycle();
+                        source.recycle();
                         return bakeShade(photo);
                     }
                 } catch (Exception ignored) { }
