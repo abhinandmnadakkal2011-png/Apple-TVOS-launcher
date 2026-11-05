@@ -248,6 +248,7 @@ public class SettingsActivity extends Activity {
         nav(WEATHER, () -> !Weather.enabled(this) ? "Off" : Weather.place(this).isEmpty() ? "On" : Weather.place(this));
         nav(HOME, () -> {
             String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
+            if (k != null && k.startsWith("photo:")) return "Custom Photo";
             int i = java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k);
             return MainActivity.WALL_NAMES[Math.max(0, i)];
         });
@@ -533,6 +534,40 @@ public class SettingsActivity extends Activity {
         });
     }
 
+    private static final int PICK_WALLPAPER = 7412;
+
+    /** Opens the TV's own document/photo picker; the selected URI remains available after reboot. */
+    void chooseWallpaperPhoto() {
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        pick.addCategory(Intent.CATEGORY_OPENABLE);
+        pick.setType("image/*");
+        pick.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try {
+            startActivityForResult(pick, PICK_WALLPAPER);
+        } catch (android.content.ActivityNotFoundException e) {
+            Intent fallback = new Intent(Intent.ACTION_GET_CONTENT);
+            fallback.setType("image/*");
+            fallback.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            try { startActivityForResult(Intent.createChooser(fallback, "Choose wallpaper"), PICK_WALLPAPER); }
+            catch (Exception ignored) { Toast.makeText(this, "No photo picker is available on this TV", Toast.LENGTH_LONG).show(); }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != PICK_WALLPAPER || resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        android.net.Uri uri = data.getData();
+        try {
+            getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (Exception ignored) {
+            // Some gallery apps return a temporary URI; it still works for this session.
+        }
+        Profiles.homePrefs(this).edit().putString("wallpaper", "photo:" + uri.toString()).apply();
+        refreshAll();
+        Toast.makeText(this, "Wallpaper updated", Toast.LENGTH_SHORT).show();
+    }
+
     void pageHome() {
         row("Home screen", () -> Perms.isDefaultHome(this) ? "Hume Launcher" : "Make Hume the home screen\u2026",
                 () -> Perms.requestDefaultHome(this));
@@ -547,7 +582,11 @@ public class SettingsActivity extends Activity {
                 Profiles.homePrefs(this).edit().putString("wallpaper", MainActivity.WALL_KEYS[w]).apply();
                 refreshAll();
                 d.dismiss();
-            }).show();
+            }).setNeutralButton("Choose photo…", (d, w) -> chooseWallpaperPhoto())
+              .setNegativeButton("Reset photo", (d, w) -> {
+                  Profiles.homePrefs(this).edit().putString("wallpaper", "aurora").apply();
+                  refreshAll();
+              }).show();
         });
         row("Home button opens Hume", () -> PowerService.HomeButton.isDefaultHome(this) ? "Not needed"
                 : !PowerService.HomeButton.enabled(this) ? "Off"
