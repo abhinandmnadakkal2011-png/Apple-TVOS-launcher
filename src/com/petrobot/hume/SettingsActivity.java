@@ -583,7 +583,7 @@ public class SettingsActivity extends Activity {
                 refreshAll();
                 d.dismiss();
             }).setNeutralButton("Choose photo…", (d, w) -> chooseWallpaperPhoto())
-              .setNegativeButton("Reset photo", (d, w) -> {
+              .setNegativeButton("Reset to Aurora", (d, w) -> {
                   Profiles.homePrefs(this).edit().putString("wallpaper", "aurora").apply();
                   refreshAll();
               }).show();
